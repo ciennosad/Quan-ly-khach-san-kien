@@ -1,0 +1,3 @@
+import React,{useState} from 'react';import {createRoot} from 'react-dom/client';import {BrowserRouter} from 'react-router-dom';import RouterApp from './DinhTuyenUngDung.jsx';import './DinhDang.css';
+function Root(){const [user,setUser]=useState(()=>JSON.parse(localStorage.getItem('user')||'null'));React.useEffect(()=>{const onExpired=()=>setUser(null);window.addEventListener('auth:expired',onExpired);return()=>window.removeEventListener('auth:expired',onExpired)},[]);return <BrowserRouter><RouterApp user={user} onLogin={setUser}/></BrowserRouter>}
+createRoot(document.getElementById('root')).render(<React.StrictMode><Root/></React.StrictMode>);
