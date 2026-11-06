@@ -1,3 +1,4 @@
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 // Bọc quanh 1 route để kiểm tra: đã đăng nhập chưa, và có đúng quyền (role) không.

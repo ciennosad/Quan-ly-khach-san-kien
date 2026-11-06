@@ -882,24 +882,27 @@ router.get('/bookings/:code/refund',auth,async(req,res,next)=>{
 router.patch('/bookings/:code/refund-recipient',auth,async(req,res,next)=>{
   try{
     const {method='BANK_TRANSFER',bankCode='',bankAccount='',accountName=''}=req.body;
-    if(!['BANK_TRANSFER','CASH'].includes(method)) return res.status(400).json({message:'Phương thức nhận hoàn tiền không hợp lệ'});
+    if(method!=='BANK_TRANSFER') return res.status(400).json({message:'Hoàn tiền yêu cầu cung cấp tài khoản ngân hàng'});
     const b=(await pool.query(`SELECT id,booking_code,customer_id FROM bookings WHERE booking_code=$1`,[req.params.code])).rows[0];
     if(!b) return res.status(404).json({message:'Booking không tồn tại'});
     if(b.customer_id!==req.user.sub) return res.status(403).json({message:'Bạn không có quyền cập nhật yêu cầu hoàn tiền này'});
     const current=(await pool.query(`SELECT id,status,raw_payload FROM payments WHERE booking_id=$1 AND type='REFUND' ORDER BY created_at DESC LIMIT 1`,[b.id])).rows[0];
     if(!current) return res.status(404).json({message:'Booking chưa có yêu cầu hoàn tiền'});
-    if(!['PENDING','REJECTED'].includes(current.status)) return res.status(409).json({message:'Yêu cầu hoàn tiền đã được xử lý; không thể sửa thông tin nhận tiền'});
+    const approvedRefund=current.status==='APPROVED';
+    if(!['PENDING','REJECTED'].includes(current.status)&&!approvedRefund) return res.status(409).json({message:'Yêu cầu hoàn tiền đã được xử lý; không thể sửa thông tin nhận tiền'});
     if(method==='BANK_TRANSFER'){
       if(!bankCode||!bankAccount||!accountName) return res.status(400).json({message:'Vui lòng nhập ngân hàng, số tài khoản và tên chủ tài khoản'});
       if(!/^\d{6,30}$/.test(String(bankAccount).trim())) return res.status(400).json({message:'Số tài khoản ngân hàng không hợp lệ'});
     }
     const refund={...(current.raw_payload||{}),refundMethod:method};
-    if(method==='BANK_TRANSFER') Object.assign(refund,{refundBankCode:String(bankCode).trim().toUpperCase(),refundBankAccount:String(bankAccount).trim(),refundAccountName:String(accountName).trim().toUpperCase()});
-    else delete refund.refundBankCode, delete refund.refundBankAccount, delete refund.refundAccountName;
+    Object.assign(refund,{refundBankCode:String(bankCode).trim().toUpperCase(),refundBankAccount:String(bankAccount).trim(),refundAccountName:String(accountName).trim().toUpperCase()});
     const nextStatus=current.status==='REJECTED'?'PENDING':current.status;
-    const r=await pool.query(`UPDATE payments SET status=$1,raw_payload=$2::jsonb WHERE id=$3::uuid AND type='REFUND' AND status IN ('PENDING','REJECTED') RETURNING id,amount,status,raw_payload`,[nextStatus,JSON.stringify(refund),current.id]);
+    const r=approvedRefund
+      ? await pool.query(`UPDATE payments SET raw_payload=$1::jsonb WHERE id=$2::uuid AND type='REFUND' AND status='APPROVED' RETURNING id,amount,status,raw_payload`,[JSON.stringify(refund),current.id])
+      : await pool.query(`UPDATE payments SET status=$1,raw_payload=$2::jsonb WHERE id=$3::uuid AND type='REFUND' AND status IN ('PENDING','REJECTED') RETURNING id,amount,status,raw_payload`,[nextStatus,JSON.stringify(refund),current.id]);
     if(!r.rowCount) return res.status(409).json({message:'Yêu cầu hoàn tiền vừa được xử lý'});
     await log(req.user.sub,'REFUND_RECIPIENT_UPDATED','PAYMENT',current.id,{method,bankCode:refund.refundBankCode||null});
+    if(approvedRefund) await notifyRoles(['ADMIN','MANAGER'],'Khách đã cập nhật thông tin nhận hoàn tiền',`Booking ${b.booking_code} đã cập nhật tài khoản nhận khoản hoàn đã được duyệt.`,'/admin').catch(e=>console.error('[REFUND] Không gửi được thông báo cập nhật thông tin:',e.message));
     res.json({id:r.rows[0].id,amount:Number(r.rows[0].amount),status:r.rows[0].status,refund:r.rows[0].raw_payload||{}});
   }catch(e){next(e)}
 });
@@ -1736,15 +1739,16 @@ router.post('/admin/payments/:id/reject',auth,roles('ADMIN','RECEPTIONIST'),asyn
 // Chỉ ADMIN/MANAGER được duyệt và xác nhận hoàn tiền. Lễ tân không có quyền thao tác refund.
 router.get('/admin/refunds',auth,roles('ADMIN','MANAGER'),async(req,res,next)=>{
   try{
-    const r=await pool.query(`SELECT p.*,b.booking_code,r.room_number,u.full_name customer,u.email customer_email
+    const r=await pool.query(`SELECT p.*,b.booking_code,r.room_number,u.full_name customer,u.email customer_email,
+      COALESCE(NULLIF(b.customer_phone,''),u.phone) customer_phone
       FROM payments p JOIN bookings b ON b.id=p.booking_id JOIN rooms r ON r.id=b.room_id LEFT JOIN users u ON u.id=b.customer_id
       WHERE p.type='REFUND' ORDER BY p.created_at DESC`);
     const rows=await Promise.all(r.rows.map(async row=>{
       const refund=row.raw_payload||{};
       let qrUrl=null;
       if(row.status==='APPROVED' && refund.refundMethod==='BANK_TRANSFER' && refund.refundBankCode && refund.refundBankAccount){
-        // Nội dung chuyển khoản hoàn tiền = số phòng, tự động lấy từ booking.
-        const info=encodeURIComponent(`PHONG ${row.room_number}`);
+        // Dùng mã booking làm nội dung chuyển khoản để đối soát khoản hoàn.
+        const info=encodeURIComponent(row.booking_code);
         qrUrl=`https://img.vietqr.io/image/${refund.refundBankCode}-${refund.refundBankAccount}-compact2.png?amount=${Math.round(Number(row.amount))}&addInfo=${info}&accountName=${encodeURIComponent(refund.refundAccountName||'')}`;
       }
       return {...row, refund, refund_qr_url:qrUrl};
@@ -1762,7 +1766,8 @@ router.patch('/admin/refunds/:paymentId',auth,roles('ADMIN','MANAGER'),async(req
     const payload={...(current.raw_payload||{})};
     if(status==='APPROVED'){
       if(current.status!=='PENDING') return res.status(409).json({message:'Chỉ yêu cầu đang chờ mới được duyệt'});
-      if(payload.refundMethod==='BANK_TRANSFER' && (!payload.refundBankCode||!payload.refundBankAccount||!payload.refundAccountName)) return res.status(400).json({message:'Khách chưa cung cấp đủ thông tin tài khoản nhận hoàn tiền'});
+      if(!payload.refundBankCode||!payload.refundBankAccount||!payload.refundAccountName) return res.status(400).json({message:'Khách chưa cung cấp đủ thông tin tài khoản nhận hoàn tiền'});
+      payload.refundMethod='BANK_TRANSFER';
       payload.approvedBy=req.user.sub; payload.approvedAt=new Date().toISOString();
       if(reason) payload.refundReason=reason;
       const r=await pool.query(`UPDATE payments SET status='APPROVED',raw_payload=$1::jsonb WHERE id=$2::uuid AND status='PENDING' RETURNING *`,[JSON.stringify(payload),current.id]);
@@ -1771,18 +1776,18 @@ router.patch('/admin/refunds/:paymentId',auth,roles('ADMIN','MANAGER'),async(req
       await log(req.user.sub,'REFUND_APPROVED','PAYMENT',current.id,{bookingCode:bk?.booking_code,amount:current.amount});
       if(bk?.customer_id) await notify(bk.customer_id,'Hoàn tiền đã được duyệt',`Yêu cầu hoàn ${vnd(current.amount)} cho booking ${bk.booking_code} đã được quản lý duyệt. Khách sạn đang thực hiện chuyển tiền.`,'/account');
       let refundQrUrl=null;
-      if(payload.refundMethod==='BANK_TRANSFER' && payload.refundBankCode && payload.refundBankAccount && bk?.room_number){
-        refundQrUrl=`https://img.vietqr.io/image/${payload.refundBankCode}-${payload.refundBankAccount}-compact2.png?amount=${Math.round(Number(current.amount))}&addInfo=${encodeURIComponent(`PHONG ${bk.room_number}`)}&accountName=${encodeURIComponent(payload.refundAccountName||'')}`;
+      if(payload.refundMethod==='BANK_TRANSFER' && payload.refundBankCode && payload.refundBankAccount && bk?.booking_code){
+        refundQrUrl=`https://img.vietqr.io/image/${payload.refundBankCode}-${payload.refundBankAccount}-compact2.png?amount=${Math.round(Number(current.amount))}&addInfo=${encodeURIComponent(bk.booking_code)}&accountName=${encodeURIComponent(payload.refundAccountName||'')}`;
       }
       return res.json({...r.rows[0],refund:r.rows[0].raw_payload||{},refund_qr_url:refundQrUrl,booking_code:bk?.booking_code||null,room_number:bk?.room_number||null});
     }
     if(status==='SUCCESS'){
       if(current.status!=='APPROVED') return res.status(409).json({message:'Khoản hoàn tiền phải được quản lý duyệt trước khi xác nhận đã chuyển'});
       if(payload.refundMethod==='BANK_TRANSFER' && (!payload.refundBankCode||!payload.refundBankAccount||!payload.refundAccountName)) return res.status(400).json({message:'Thiếu thông tin tài khoản nhận hoàn tiền'});
-      // Nội dung chuyển khoản luôn là số phòng, không cho người dùng nhập thủ công.
+      // Nội dung chuyển khoản hoàn tiền luôn là mã booking.
       const bk=(await pool.query(`SELECT customer_id,booking_code,r.room_number FROM bookings b JOIN rooms r ON r.id=b.room_id WHERE b.id=$1`,[current.booking_id])).rows[0];
-      if(!bk?.room_number) return res.status(400).json({message:'Không xác định được số phòng của yêu cầu hoàn tiền'});
-      payload.bankReference=`PHONG ${bk.room_number}`; payload.processedBy=req.user.sub; payload.processedAt=new Date().toISOString();
+      if(!bk?.booking_code) return res.status(400).json({message:'Không xác định được mã booking của yêu cầu hoàn tiền'});
+      payload.bankReference=bk.booking_code; payload.processedBy=req.user.sub; payload.processedAt=new Date().toISOString();
       const r=await pool.query(`UPDATE payments SET status='SUCCESS',paid_at=NOW(),raw_payload=$1::jsonb WHERE id=$2::uuid AND status='APPROVED' RETURNING *`,[JSON.stringify(payload),current.id]);
       if(!r.rowCount) return res.status(409).json({message:'Yêu cầu vừa được xử lý bởi người khác'});
       await log(req.user.sub,'REFUND_SUCCESS','PAYMENT',current.id,{bookingCode:bk.booking_code,amount:current.amount,bankReference:payload.bankReference});

@@ -31,6 +31,29 @@ async function ensureRoomTypeCatalog(){
   for(const [name,description,capacity,price,amenities] of catalog){
     await pool.query(`INSERT INTO room_types(name,description,capacity,base_price,amenities) VALUES($1,$2,$3,$4,$5) ON CONFLICT(name) DO UPDATE SET description=EXCLUDED.description,capacity=EXCLUDED.capacity`,[name,description,capacity,price,JSON.stringify(amenities)]);
   }
+  await pool.query(`UPDATE room_types SET description=CASE name
+    WHEN 'Phong thuong 1 giuong' THEN 'Phòng tiêu chuẩn có 1 giường lớn, không gian gọn gàng và phù hợp tối đa 2 khách.'
+    WHEN 'Phong thuong 2 giuong' THEN 'Phòng tiêu chuẩn có 2 giường riêng biệt, phù hợp tối đa 4 khách.'
+    WHEN 'Phong thuong 1 giuong doi' THEN 'Phòng thường gồm 1 giường đôi, phù hợp tối đa 2 khách.'
+    WHEN 'Phong doi 2 giuong' THEN 'Phòng có 2 giường riêng biệt, phù hợp cho gia đình hoặc nhóm tối đa 4 khách.'
+    WHEN 'Phong cao cap 1 giuong' THEN 'Phòng cao cấp với 1 giường lớn, phù hợp tối đa 2 khách.'
+    WHEN 'Phong cao cap 1 giuong lon' THEN 'Phòng cao cấp với 1 giường lớn, phù hợp tối đa 2 khách.'
+    WHEN 'Phong cao cap 2 giuong' THEN 'Phòng cao cấp với 2 giường, phù hợp tối đa 4 khách.'
+    WHEN 'Phong cao cap 2 giuong doi va 1 giuong don' THEN 'Phòng cao cấp gồm 2 giường đôi và 1 giường đơn, phù hợp tối đa 4 khách.'
+    WHEN 'Phong cao cap 2 khach' THEN 'Phòng cao cấp phù hợp tối đa 2 khách.'
+    WHEN 'Phong cao cap 4 khach sofa rieng' THEN 'Phòng cao cấp rộng rãi, có khu vực ghế sofa riêng.'
+    WHEN 'Phong gia dinh 1 giuong lon' THEN 'Phòng rộng cho gia đình với 1 giường lớn, phù hợp tối đa 4 khách.'
+    WHEN 'Phong gia dinh 4 khach' THEN 'Phòng gia đình rộng rãi, tiện nghi đầy đủ.'
+    WHEN 'Phong tap the 5 giuong' THEN 'Phòng lưu trú nhóm với 5 giường riêng, phù hợp tối đa 5 khách.'
+    WHEN 'Phong nhom 5 khach' THEN 'Phòng nhóm gồm 2 giường đôi và 1 giường đơn, phù hợp tối đa 5 khách.'
+    WHEN 'Phong nhom 6 khach' THEN 'Phòng nhóm gồm 3 giường đôi, phù hợp tối đa 6 khách.'
+    WHEN 'Phong nhom 7 khach' THEN 'Phòng nhóm gồm 3 giường đôi và 1 giường đơn, phù hợp tối đa 7 khách.'
+    WHEN 'Phong nhom 8 khach' THEN 'Phòng nhóm gồm 3 giường đôi và 2 giường đơn, phù hợp tối đa 8 khách.'
+    ELSE description END
+    WHERE name IN ('Phong thuong 1 giuong','Phong thuong 2 giuong','Phong thuong 1 giuong doi','Phong doi 2 giuong',
+      'Phong cao cap 1 giuong','Phong cao cap 1 giuong lon','Phong cao cap 2 giuong','Phong cao cap 2 giuong doi va 1 giuong don',
+      'Phong cao cap 2 khach','Phong cao cap 4 khach sofa rieng','Phong gia dinh 1 giuong lon','Phong gia dinh 4 khach',
+      'Phong tap the 5 giuong','Phong nhom 5 khach','Phong nhom 6 khach','Phong nhom 7 khach','Phong nhom 8 khach')`);
   await pool.query(`UPDATE room_types SET capacity=4,description=regexp_replace(description,'tối đa [0-9]+ khách','tối đa 4 khách','gi')
     WHERE name ILIKE '%2 giường%' OR name ILIKE '%2 giuong%' OR name ILIKE '%2 bed%' OR name ILIKE '%twin%'`);
 }

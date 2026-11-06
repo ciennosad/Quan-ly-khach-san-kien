@@ -1,3 +1,4 @@
+import React from 'react';
 import {Routes,Route} from 'react-router-dom';
 import App from './UngDung.jsx';import Login from './DangNhap.jsx';import Register from './DangKy.jsx';import ForgotPassword from './QuenMatKhau.jsx';import ResetPassword from './DatLaiMatKhau.jsx';import Booking from './DatPhong.jsx';import Account from './TaiKhoan.jsx';
 import AdminHome from './TrangQuanTri.jsx';import Reception from './LeTan.jsx';import StaffWorkspace from './NhanVien.jsx';import ProtectedRoute from './BaoVeDuongDan.jsx';import Notifications from './ThongBao.jsx';import SiteHeader from './DauTrang.jsx';

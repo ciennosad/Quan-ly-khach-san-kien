@@ -1,3 +1,4 @@
+import React from 'react';
 import {useEffect,useState} from 'react';
 import {api,money,assetUrl,roomTypeLabel,roomTypeTitle,roomTypeBedInfo,serviceDisplay} from './KetNoiAPI';
 import ChatBot from './ChatBot.jsx';

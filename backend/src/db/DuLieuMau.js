@@ -59,14 +59,6 @@ await pool.query(`UPDATE room_types SET capacity=4,description=regexp_replace(de
 
 const typeRows = await pool.query(`SELECT id,name FROM room_types`);
 const map = Object.fromEntries(typeRows.rows.map(x => [x.name,x.id]));
-<<<<<<< HEAD
-const rooms = [['101','Phong thuong 1 giuong'],['102','Phong doi 2 giuong'],['201','Phong cao cap 1 giuong'],['202','Phong cao cap 2 giuong'],['301','Phong gia dinh 1 giuong lon']];
-for (const [number,type] of rooms) {
-  await pool.query(
-    `INSERT INTO rooms(room_number,room_type_id) VALUES($1,$2) ON CONFLICT(room_number) DO NOTHING`,
-    [number,map[type]]
-  );
-=======
 const roomPhoto=id=>`https://images.unsplash.com/${id}?auto=format&fit=crop&w=1400&q=85`;
 const rooms = [
   ['101','Phòng thường 1 giường'],['102','Phòng cao cấp 1 giường'],['201','Phòng thường 2 giường'],['202','Phòng cao cấp 2 giường'],['301','Phòng gia đình 1 giường lớn'],
@@ -88,7 +80,6 @@ for (const [number,type,image] of rooms) {
       [number,map[type]]
     );
   }
->>>>>>> 3262c5b (Cập nhật dự án)
 }
 
 const services = [['Dua don san bay','Dua don san bay',350000],['Buffet sang','Buffet sang moi ngay',180000],['Giat say quan ao','Giat va say quan ao',100000],['Do an nhe va nuoc uong trong phong','Do uong va thuc an nhe trong phong',120000],['Nuoc suoi','Nuoc suoi',30000]];

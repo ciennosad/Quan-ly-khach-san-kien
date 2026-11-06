@@ -1,6 +1,14 @@
+import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, money, date, bookingStatusLabel, roleLabel, paymentTypeLabel, paymentStatusLabel, roomTypeLabel, serviceDisplay } from './KetNoiAPI';
+
+const REFUND_STATUS_LABEL = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt — chờ chuyển',
+  REJECTED: 'Cần cập nhật thông tin',
+  SUCCESS: 'Đã hoàn tiền'
+};
 
 function ReviewBox({ booking, onDone }) {
   const [rating, setRating] = useState(5);
@@ -185,8 +193,10 @@ function RefundRecipientTab({ bookings }) {
     {msg && <div className="notice">{msg}</div>}
     {items.map(item => {
       const form = forms[item.booking_code] || {};
-      const locked = ['APPROVED', 'SUCCESS'].includes(item.refund.status);
       const needsInfo = !form.bankCode || !form.bankAccount || !form.accountName;
+      // Approved refunds still wait for the transfer, so let the customer correct
+      // recipient details until the refund is marked successful.
+      const locked = item.refund.status === 'SUCCESS';
       return <div className="refund-recipient-card" key={item.booking_code}>
         <div className="refund-recipient-head">
           <div>
@@ -204,7 +214,9 @@ function RefundRecipientTab({ bookings }) {
             <label>Số tài khoản<input inputMode="numeric" value={form.bankAccount || ''} disabled={locked} onChange={e => updateForm(item.booking_code, { bankAccount: e.target.value })} placeholder="0123456789" required /></label>
             <label>Tên chủ tài khoản<input value={form.accountName || ''} disabled={locked} onChange={e => updateForm(item.booking_code, { accountName: e.target.value })} placeholder="NGUYEN VAN A" required /></label>
           </div>
-          {!locked ? <button className="btn dark" disabled={needsInfo}>Lưu và gửi lại quản lý</button> : <span className="refund-complete-label">{item.refund.status === 'SUCCESS' ? '✓ Đã hoàn' : 'Đã gửi quản lý duyệt'}</span>}
+          {!locked
+            ? <button className="btn dark" disabled={needsInfo}>{item.refund.status === 'APPROVED' ? 'Lưu thông tin nhận tiền' : 'Lưu và gửi lại quản lý'}</button>
+            : <span className="refund-complete-label">{item.refund.status === 'SUCCESS' ? '✓ Đã hoàn' : 'Đã gửi quản lý duyệt'}</span>}
         </form>
       </div>;
     })}

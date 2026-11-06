@@ -1,3 +1,4 @@
+import React from 'react';
 import {useState} from 'react';import {Link,useNavigate,useSearchParams} from 'react-router-dom';import {api} from './KetNoiAPI';
 export default function Login({onLogin}){const nav=useNavigate();const [searchParams]=useSearchParams();const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [m,setM]=useState('');
 async function go(e){e.preventDefault();try{const d=await api('/auth/login',{method:'POST',body:JSON.stringify({email,password})});localStorage.setItem('accessToken',d.accessToken);localStorage.setItem('refreshToken',d.refreshToken);localStorage.setItem('user',JSON.stringify(d.user));onLogin(d.user);const rawReturn=searchParams.get('returnTo')||'/';const target=(rawReturn.startsWith('/')&&!rawReturn.startsWith('//'))?rawReturn:'/';nav(target)}catch(e){setM(e.message)}}

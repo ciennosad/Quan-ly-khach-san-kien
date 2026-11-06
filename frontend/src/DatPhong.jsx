@@ -1,6 +1,7 @@
+import React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, money, assetUrl, roomTypeLabel, roomTypeTitle, roomTypeBedInfo } from './KetNoiAPI';
+import { api, money, assetUrl, roomTypeLabel, roomTypeTitle, roomTypeBedInfo, serviceDisplay } from './KetNoiAPI';
 import { getRoomGallery } from './AnhPhongMacDinh';
 
 function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }

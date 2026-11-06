@@ -1,3 +1,4 @@
+import React from 'react';
 import {useState} from 'react';import {Link,useNavigate} from 'react-router-dom';import {api} from './KetNoiAPI';
 
 // Trang đăng ký công khai — MỌI người dùng mới (kể cả người sẽ trở thành lễ tân/quản lý

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, money, date, roleLabel, bookingStatusLabel, roomStatusLabel, paymentTypeLabel, paymentStatusLabel, roomTypeLabel, roomTypeBedInfo, assetUrl } from './KetNoiAPI';
@@ -408,7 +409,7 @@ export default function AdminHome() {
 
   async function reviewRefund(refund, status) {
     try {
-      if (status === 'APPROVED' && refund.refund?.refundMethod === 'BANK_TRANSFER' && !refund.refund?.refundBankAccount) { alert('Khách chưa cung cấp thông tin tài khoản nhận hoàn tiền.'); return; }
+      if (status === 'APPROVED' && (!refund.refund?.refundBankCode || !refund.refund?.refundBankAccount || !refund.refund?.refundAccountName)) { alert('Khách chưa cung cấp đủ ngân hàng, số tài khoản và tên chủ tài khoản nhận hoàn tiền.'); return; }
       const reason = status === 'REJECTED' ? prompt('Lý do từ chối hoàn tiền:') || '' : '';
       // Nội dung chuyển khoản được hệ thống tự động lấy bằng mã đặt phòng.
       const updated = await api(`/admin/refunds/${refund.id}`, { method: 'PATCH', body: JSON.stringify({ status, reason }) });
@@ -731,12 +732,15 @@ export default function AdminHome() {
           <div className="notice">Chỉ Quản lý/Quản trị viên được duyệt và chuyển hoàn tiền. Lễ tân không có quyền hoàn tiền.</div>
           {refunds.map(r => {
             const info = r.refund || r.raw_payload || {};
+            const missingRecipientInfo = !info.refundBankCode || !info.refundBankAccount || !info.refundAccountName;
+            const contactPhone = r.customer_phone || '';
             return <div className="manage-row" key={r.id}>
-              <div><b>{r.booking_code} · Phòng {r.room_number || '—'}</b><span>{r.customer || '—'} · {info.refundMethod === 'CASH' ? 'Nhận tiền mặt' : 'Chuyển khoản'}</span></div>
+              <div><b>{r.booking_code} · Phòng {r.room_number || '—'}</b><span>{r.customer || '—'} · LH {contactPhone || 'Chưa có SĐT'}</span></div>
               <div><b>{money(r.amount)}</b><span>{info.refundBankCode || ''} {info.refundBankAccount ? `· ${info.refundBankAccount}` : '· Chưa có tài khoản'}</span></div>
               <span className={`status ${(r.status || '').toLowerCase()}`}>{r.status === 'PENDING' ? 'Chờ duyệt' : r.status === 'APPROVED' ? 'Đã duyệt — chờ chuyển' : paymentStatusLabel(r.status)}</span>
-              {r.status === 'PENDING' && <><button className="btn dark" onClick={() => reviewRefund(r, 'APPROVED')}>Duyệt hoàn tiền</button><button className="btn ghost" onClick={() => reviewRefund(r, 'REJECTED')}>Từ chối</button></>}
-              {r.status === 'APPROVED' && info.refundMethod === 'BANK_TRANSFER' && r.refund_qr_url && <div className="refund-qr-card"><b>Quét QR bằng ứng dụng ngân hàng của khách sạn</b><img src={r.refund_qr_url} alt="QR nhận hoàn tiền"/><div>Ngân hàng: <b>{info.refundBankCode}</b><br/>STK: <b>{info.refundBankAccount}</b><br/>Chủ TK: <b>{info.refundAccountName}</b><br/>Nội dung chuyển khoản: <b>PHONG {r.room_number || '—'}</b></div><button className="btn dark" onClick={() => reviewRefund(r, 'SUCCESS')}>Đã chuyển tiền — xác nhận</button></div>}
+              {r.status === 'PENDING' && <>{missingRecipientInfo && <span className="notice">{contactPhone ? <>LH <a href={`tel:${contactPhone}`}>{contactPhone}</a> để bổ sung tài khoản nhận tiền</> : 'Khách chưa cung cấp số điện thoại để liên hệ bổ sung tài khoản nhận tiền'}</span>}{!missingRecipientInfo && <button className="btn dark" onClick={() => reviewRefund(r, 'APPROVED')}>Duyệt hoàn tiền</button>}<button className="btn ghost" onClick={() => reviewRefund(r, 'REJECTED')}>Từ chối</button></>}
+              {r.status === 'APPROVED' && missingRecipientInfo && <span className="notice">{contactPhone ? <>LH <a href={`tel:${contactPhone}`}>{contactPhone}</a> để bổ sung tài khoản nhận tiền</> : 'Khách chưa cung cấp số điện thoại để liên hệ bổ sung tài khoản nhận tiền'}</span>}
+              {r.status === 'APPROVED' && info.refundMethod === 'BANK_TRANSFER' && r.refund_qr_url && <div className="refund-qr-card"><b>Quét QR bằng ứng dụng ngân hàng của khách sạn</b><img src={r.refund_qr_url} alt="QR nhận hoàn tiền"/><div>Ngân hàng: <b>{info.refundBankCode}</b><br/>STK: <b>{info.refundBankAccount}</b><br/>Chủ TK: <b>{info.refundAccountName}</b><br/>Nội dung chuyển khoản: <b>{r.booking_code || '—'}</b></div><button className="btn dark" onClick={() => reviewRefund(r, 'SUCCESS')}>Đã chuyển tiền — xác nhận</button></div>}
               {r.status === 'APPROVED' && info.refundMethod === 'CASH' && <button className="btn dark" onClick={() => reviewRefund(r, 'SUCCESS')}>Đã trả tiền mặt — xác nhận</button>}
             </div>;
           })}
