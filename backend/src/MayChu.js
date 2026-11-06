@@ -15,21 +15,32 @@ const app=express();
 const port=process.env.PORT||4000;
 
 async function ensureRoomTypeCatalog(){
+  await pool.query(`
+    ALTER TABLE room_types ADD COLUMN IF NOT EXISTS category VARCHAR(40);
+    ALTER TABLE room_types ADD COLUMN IF NOT EXISTS double_beds INT NOT NULL DEFAULT 0;
+    ALTER TABLE room_types ADD COLUMN IF NOT EXISTS single_beds INT NOT NULL DEFAULT 0;
+  `);
   const catalog=[
-    ['Phong thuong 1 giuong','Phong tieu chuan voi 1 giuong lon, phu hop toi da 2 khach.',2,1200000,['Wifi mien phi','Tivi thong minh','Dieu hoa']],
-    ['Phong doi 2 giuong','Phong co 2 giuong rieng biet, phu hop toi da 4 khach.',4,1500000,['Wifi mien phi','Tivi thong minh','Dieu hoa']],
-    ['Phong cao cap 1 giuong','Phong cao cap voi 1 giuong lon, phu hop toi da 2 khach.',2,1800000,['Wifi mien phi','Bua sang','Tivi thong minh','Bon tam']],
-    ['Phong cao cap 2 giuong','Phong cao cap voi 2 giuong, phu hop toi da 4 khach.',4,2200000,['Wifi mien phi','Bua sang','Tivi thong minh','Bon tam']],
-    ['Phong gia dinh 1 giuong lon','Phong rong cho gia dinh voi 1 giuong lon, phu hop toi da 4 khach.',4,2600000,['Wifi mien phi','Bua sang','Tivi thong minh','Tu lanh mini']],
-    ['Phong tap the 5 giuong','Phong luu tru nhom voi 5 giuong rieng, phu hop toi da 5 khach.',5,3500000,['Wifi mien phi','Dieu hoa','Tu khoa ca nhan']],
+    ['Phòng thường 1 giường','Phòng tiêu chuẩn có 1 giường lớn, không gian gọn gàng và phù hợp tối đa 2 khách.',2,1200000,['Wifi miễn phí','TV thông minh','Điều hòa']],
+    ['Phòng đôi 2 giường','Phòng có 2 giường riêng biệt, phù hợp cho gia đình hoặc nhóm tối đa 4 khách.',4,1500000,['Wifi miễn phí','TV thông minh','Điều hòa']],
+    ['Phòng cao cấp 1 giường','Phòng cao cấp với 1 giường king, phù hợp tối đa 2 khách.',2,1800000,['Wifi miễn phí','Ăn sáng','TV thông minh','Bồn tắm']],
+    ['Phòng cao cấp 2 giường','Phòng cao cấp với 2 giường, phù hợp tối đa 4 khách.',4,2200000,['Wifi miễn phí','Ăn sáng','TV thông minh','Bồn tắm']],
+    ['Phòng gia đình 1 giường lớn','Phòng rộng cho gia đình với 1 giường lớn, phù hợp tối đa 4 khách.',4,2600000,['Wifi miễn phí','Ăn sáng','TV thông minh','Tủ lạnh mini']],
+    ['Phòng tập thể 5 giường','Phòng lưu trú nhóm với 5 giường riêng, phù hợp tối đa 5 khách.',5,3500000,['Wifi miễn phí','Điều hòa','Tủ khóa cá nhân']],
   ];
   for(const [name,description,capacity,price,amenities] of catalog){
-    await pool.query(`INSERT INTO room_types(name,description,capacity,base_price,amenities) VALUES($1,$2,$3,$4,$5) ON CONFLICT(name) DO NOTHING`,[name,description,capacity,price,JSON.stringify(amenities)]);
+    await pool.query(`INSERT INTO room_types(name,description,capacity,base_price,amenities) VALUES($1,$2,$3,$4,$5) ON CONFLICT(name) DO UPDATE SET description=EXCLUDED.description,capacity=EXCLUDED.capacity`,[name,description,capacity,price,JSON.stringify(amenities)]);
   }
+  await pool.query(`UPDATE room_types SET capacity=4,description=regexp_replace(description,'tối đa [0-9]+ khách','tối đa 4 khách','gi')
+    WHERE name ILIKE '%2 giường%' OR name ILIKE '%2 giuong%' OR name ILIKE '%2 bed%' OR name ILIKE '%twin%'`);
 }
 async function ensurePayrollSchema(){
   try{
     await pool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS id_card_number VARCHAR(20);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS id_card_issue_date DATE;
+      ALTER TABLE bookings ADD COLUMN IF NOT EXISTS id_card_number VARCHAR(20);
+      ALTER TABLE bookings ADD COLUMN IF NOT EXISTS id_card_issue_date DATE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS payroll_daily_rate NUMERIC(12,2) NOT NULL DEFAULT 0;
       ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_reminder_sent_at TIMESTAMPTZ;
       ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_reminder_claimed_at TIMESTAMPTZ;

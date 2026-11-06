@@ -99,14 +99,16 @@ export default function Reception() {
 
   const [code, setCode] = useState('');
   const [booking, setBooking] = useState(null);
+  const [checkInBusy, setCheckInBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [surcharge, setSurcharge] = useState(0);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutInvoice, setCheckoutInvoice] = useState(null);
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState('CASH');
   const [pending, setPending] = useState([]);
-  const [kyc, setKyc] = useState([]);
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab');
-  const receptionTabs = ['checkin','housekeeping','payments','invoice','kyc'];
+  const receptionTabs = ['checkin','housekeeping','payments','invoice'];
   const [tab, setTab] = useState(receptionTabs.includes(initialTab) ? initialTab : 'checkin');
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('tab');
@@ -120,19 +122,34 @@ export default function Reception() {
   const [invoiceData, setInvoiceData] = useState(null);
   const [invoiceBookings, setInvoiceBookings] = useState([]);
   const [invoiceMsg, setInvoiceMsg] = useState('');
+  const [invoiceCatalog, setInvoiceCatalog] = useState([]);
+  const [addingInvoiceService, setAddingInvoiceService] = useState('');
+  const [invoiceServiceQuantities, setInvoiceServiceQuantities] = useState({});
+  const [overdueCheckins, setOverdueCheckins] = useState([]);
+  const [noShowBusy, setNoShowBusy] = useState('');
+  const [noShowClock, setNoShowClock] = useState(Date.now());
+  useEffect(() => {
+    if (tab !== 'checkin') return;
+    loadOverdueCheckins();
+    const refreshTimer=setInterval(loadOverdueCheckins,60000);
+    const clockTimer=setInterval(()=>setNoShowClock(Date.now()),1000);
+    return ()=>{clearInterval(refreshTimer);clearInterval(clockTimer);};
+  }, [tab]);
   useEffect(() => { if (tab === 'payments') loadPending(); }, [tab]);
-  useEffect(() => { if (tab === 'kyc') loadKyc(); }, [tab]);
   useEffect(() => { if (tab === 'housekeeping') loadHousekeeping(); }, [tab]);
-  useEffect(() => { if (tab === 'invoice') { setInvoiceData(null); setInvoiceMsg(''); loadActiveInvoices(); } }, [tab]);
+  useEffect(() => { if (tab === 'invoice') { setInvoiceData(null); setInvoiceMsg(''); loadActiveInvoices(); api('/services').then(setInvoiceCatalog).catch(() => setInvoiceCatalog([])); } }, [tab]);
   function loadPending() { api('/admin/payments/pending').then(setPending); }
-  function loadKyc() { api('/admin/kyc/pending').then(setKyc); }
   async function loadHousekeeping() { try { const rows = await api('/reception/housekeeping'); setHousekeeping(rows); if (rows.length && typeof rows[0].cleaning_rules_enabled === 'boolean') setCleaningRulesEnabled(rows[0].cleaning_rules_enabled); } catch(e) { setMsg(e.message); } }
 
   async function find(e, overrideCode) {
     e?.preventDefault?.();
     const searchCode = overrideCode ?? code;
-    setMsg(''); setBooking(null);
-    try { setBooking(await api(`/bookings/${encodeURIComponent(searchCode)}`)); }
+    setMsg(''); setBooking(null); setCheckoutInvoice(null); setSurcharge(0);
+    try {
+      const found = await api(`/bookings/${encodeURIComponent(searchCode)}`);
+      setBooking(found);
+      if(found.status==='CHECKED_IN') setCheckoutInvoice(await api(`/bookings/${encodeURIComponent(searchCode)}/invoice`));
+    }
     catch (e) { setMsg(e.message); }
   }
 
@@ -142,33 +159,73 @@ export default function Reception() {
     setScanHistory(list => [{ ...entry, at: new Date().toISOString() }, ...list].slice(0, 20));
   }
 
-  function handleScan(text, errorMsg) {
+  async function handleScan(text, errorMsg) {
     setScanning(false);
     if (!text) {
       setMsg(errorMsg || 'Không đọc được mã QR');
-      pushHistory({ code: '—', result: 'error', detail: errorMsg || 'Không đọc được mã QR' });
+      pushHistory({ code: 'QR booking', result: 'error', detail: errorMsg || 'Không đọc được mã QR' });
       return;
     }
     let bookingCode = text;
+    let token = '';
     try {
       const parsed = JSON.parse(text);
       bookingCode = parsed.bookingCode || text;
+      token = parsed.token || '';
     } catch { /* QR chỉ chứa text thuần, không phải JSON */ }
     setCode(bookingCode);
-    api(`/bookings/${encodeURIComponent(bookingCode)}`)
-      .then(b => {
-        setBooking(b); setMsg('');
-        pushHistory({ code: bookingCode, result: 'ok', detail: `Tìm thấy — ${bookingStatusLabel(b.status)}` });
-      })
-      .catch(e => {
-        setMsg(e.message);
-        pushHistory({ code: bookingCode, result: 'error', detail: e.message });
-      });
+    setMsg('Đang xác minh mã QR booking…');
+    try {
+      if(token) await api('/reception/qr-verify',{method:'POST',body:JSON.stringify({bookingCode,token})});
+      const found=await api(`/bookings/${encodeURIComponent(bookingCode)}`);
+      setBooking(found);
+      if(found.status==='CONFIRMED'){
+        const checkedIn=await checkIn(bookingCode,found);
+        if(checkedIn) pushHistory({code:`Phòng ${found.room_number}`,result:'ok',detail:'Check-in thành công'});
+        else pushHistory({code:`Phòng ${found.room_number}`,result:'error',detail:'Không thể check-in booking này'});
+      }else if(found.status==='CHECKED_IN'){
+        const detail=`Phòng ${found.room_number} đã được check-in trước đó`;
+        setMsg(detail);
+        pushHistory({code:`Phòng ${found.room_number}`,result:'error',detail});
+      }else{
+        const detail=`Không thể check-in: booking đang ở trạng thái ${bookingStatusLabel(found.status)}`;
+        setMsg(detail);
+        pushHistory({code:`Phòng ${found.room_number}`,result:'error',detail});
+      }
+    }catch(e){
+      setMsg(e.message);
+      pushHistory({code:'QR booking',result:'error',detail:e.message});
+    }
   }
 
-  async function checkIn() {
-    try { const r = await api('/reception/check-in', { method: 'POST', body: JSON.stringify({ bookingCode: code }) }); setBooking(b => ({ ...b, ...r, services:(b.services||[]).map(s=>s.status==='RESERVED'?{...s,status:'PENDING'}:s) })); setMsg(`Nhận phòng thành công${r.activatedServices?.length ? ` · đã thêm ${r.activatedServices.length} dịch vụ khách chọn vào hóa đơn` : ''}`); }
-    catch (e) { setMsg(e.message); }
+  async function checkIn(bookingCode=code, bookingInfo=booking) {
+    if(checkInBusy) return null;
+    setCheckInBusy(true);
+    try {
+      const r=await api('/reception/check-in',{method:'POST',body:JSON.stringify({bookingCode})});
+      const updatedBooking={...(bookingInfo||{}),...r,services:(bookingInfo?.services||[]).map(s=>s.status==='RESERVED'?{...s,status:'PENDING'}:s)};
+      setBooking(updatedBooking);
+      await loadOverdueCheckins();
+      try {
+        setCheckoutInvoice(await api(`/bookings/${encodeURIComponent(bookingCode)}/invoice`));
+        setMsg(`Check-in thành công${r.activatedServices?.length?` · đã thêm ${r.activatedServices.length} dịch vụ khách chọn vào hóa đơn`:''}`);
+      }catch { setMsg('Check-in thành công nhưng chưa tải được hóa đơn. Bạn có thể mở lại mục Hóa đơn.'); }
+      return updatedBooking;
+    }catch(e){setMsg(e.message);return null;}
+    finally{setCheckInBusy(false);}
+  }
+
+  async function collectCheckoutPayment() {
+    if(checkoutBusy || booking?.status!=='CHECKED_IN' || checkoutRemaining<=0) return;
+    const methodLabel=checkoutPaymentMethod==='CASH'?'tiền mặt':'chuyển khoản đã kiểm tra';
+    if(!window.confirm(`Xác nhận khách đã thanh toán đủ ${money(checkoutRemaining)} bằng ${methodLabel}?`)) return;
+    setCheckoutBusy(true);
+    try {
+      const r=await api('/reception/payments/collect',{method:'POST',body:JSON.stringify({bookingCode:code,surcharge,method:checkoutPaymentMethod})});
+      setMsg(r.message);
+      setCheckoutInvoice(await api(`/bookings/${encodeURIComponent(code)}/invoice`));
+    } catch(e) { setMsg(e.message); }
+    finally { setCheckoutBusy(false); }
   }
 
   async function checkOut() {
@@ -184,6 +241,34 @@ export default function Reception() {
   async function loadActiveInvoices() {
     try { setInvoiceBookings(await api('/reception/invoices/active')); }
     catch(e) { setInvoiceMsg(e.message); }
+  }
+  async function loadOverdueCheckins() {
+    try { setOverdueCheckins(await api('/reception/bookings/overdue-checkin')); }
+    catch(e) { setMsg(e.message); }
+  }
+  async function confirmNoShow(item) {
+    if(!window.confirm(`Xác nhận khách phòng ${item.room_number} không đến? Booking sẽ bị hủy, phòng được mở lại và tiền cọc không được hoàn.`)) return;
+    setNoShowBusy(item.id);
+    try {
+      await api(`/reception/bookings/${encodeURIComponent(item.id)}/no-show`,{method:'POST'});
+      setOverdueCheckins(list=>list.filter(row=>row.id!==item.id));
+      if(booking?.id===item.id){setBooking(null);setCheckoutInvoice(null);setCode('');}
+      setMsg(`Đã xác nhận khách phòng ${item.room_number} không đến. Phòng đã được mở lại; tiền cọc không hoàn.`);
+    } catch(e) { setMsg(e.message); await loadOverdueCheckins(); }
+    finally { setNoShowBusy(''); }
+  }
+  function noShowCountdown(item) {
+    const checkInTime=new Date(item.check_in).getTime();
+    const confirmationTime=checkInTime+60*60*1000;
+    const remaining=confirmationTime-noShowClock;
+    const formatDuration=milliseconds=>{
+      const duration=Math.max(0,Math.floor(milliseconds/1000));
+      const hours=Math.floor(duration/3600);
+      const minutes=Math.floor((duration%3600)/60);
+      const seconds=duration%60;
+      return [hours,minutes,seconds].map(value=>String(value).padStart(2,'0')).join(':');
+    };
+    return remaining>0?{ready:false,text:`Quá giờ nhận phòng · còn ${formatDuration(remaining)} đến mốc xác nhận`}:{ready:true,text:`Đã quá giờ nhận phòng ${formatDuration(noShowClock-checkInTime)}`};
   }
   async function loadInvoice(codeToLoad) {
     const c=String(codeToLoad||'').trim();
@@ -202,6 +287,17 @@ export default function Reception() {
       setInvoiceMsg(action==='cancel'?'Đã bỏ dịch vụ khỏi hóa đơn.':'Đã cập nhật số lượng dịch vụ và tổng tiền.');
     } catch(e) { setInvoiceMsg(e.message); }
   }
+  async function addInvoiceService(service) {
+    if (!invoiceData || addingInvoiceService) return;
+    const quantity = Number(invoiceServiceQuantities[service.id] || 1);
+    setAddingInvoiceService(service.id);
+    try {
+      await api('/reception/services', { method: 'POST', body: JSON.stringify({ bookingId: invoiceData.booking.id, serviceId: service.id, quantity }) });
+      await loadInvoice(invoiceData.booking.booking_code);
+      setInvoiceMsg(`Đã thêm dịch vụ “${service.name}” vào hóa đơn.`);
+    } catch (e) { setInvoiceMsg(e.message); }
+    finally { setAddingInvoiceService(''); }
+  }
 
   async function confirmPayment(p) {
     await api(`/admin/payments/${p.id}/confirm`, { method: 'POST' });
@@ -219,14 +315,11 @@ export default function Reception() {
     catch(e){setMsg(e.message)}
   }
 
-  async function reviewKyc(u, status) {
-    const note = status === 'REJECTED' ? (prompt('Lý do từ chối (ảnh mờ, không khớp...)') || '') : '';
-    await api(`/admin/kyc/${u.id}/review`, { method: 'POST', body: JSON.stringify({ status, note }) });
-    setKyc(list => list.filter(x => x.id !== u.id));
-  }
-
-
   const apiOrigin = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace('/api', '');
+  const checkoutPaid = (checkoutInvoice?.payments||[]).filter(p=>p.status==='SUCCESS'&&['DEPOSIT','BALANCE'].includes(p.type)).reduce((sum,p)=>sum+Number(p.amount||0),0);
+  const checkoutPaymentPending = (checkoutInvoice?.payments||[]).some(p=>p.type==='BALANCE'&&p.status==='PENDING');
+  const checkoutGrandTotal = checkoutInvoice ? Number(checkoutInvoice.invoice.roomTotal||0)+Number(checkoutInvoice.invoice.serviceTotal||0)+Number(surcharge||0) : 0;
+  const checkoutRemaining = Math.max(0,checkoutGrandTotal-checkoutPaid);
 
   return (
     <main className="account">
@@ -239,7 +332,6 @@ export default function Reception() {
           <option value="housekeeping">Dọn phòng{housekeeping.length > 0 ? ` (${housekeeping.length})` : ''}</option>
           {canApprovePayments && <option value="payments">Duyệt thanh toán{pending.length > 0 ? ` (${pending.length})` : ''}</option>}
           <option value="invoice">Hóa đơn</option>
-          <option value="kyc">Duyệt CCCD{kyc.length > 0 ? ` (${kyc.length})` : ''}</option>
         </select>
       </div>
 
@@ -252,6 +344,18 @@ export default function Reception() {
             <button className="btn dark">Tìm đặt phòng</button>
             <button type="button" className="btn ghost" onClick={() => setScanning(s => !s)}>{scanning ? 'Tắt camera' : 'Quét QR bằng camera'}</button>
           </form>
+
+          <details className="reception-no-show-section">
+            <summary><span>Khách chưa nhận phòng</span><span>{overdueCheckins.length} booking</span></summary>
+            <div className="reception-no-show-content">
+              <div className="reception-no-show-heading"><p>Booking đã xác nhận cọc, chưa check-in và đã đến giờ nhận phòng.</p><button type="button" className="btn ghost" onClick={loadOverdueCheckins}>Làm mới</button></div>
+              {!overdueCheckins.length&&<div className="empty">Hiện không có khách đã cọc nào quá giờ nhận phòng.</div>}
+              {overdueCheckins.map(item=>{const countdown=noShowCountdown(item);return <article className="reception-no-show-card" key={item.id}>
+                <div className="reception-no-show-main"><b>Phòng {item.room_number}</b><span>Khách: {item.full_name||'Chưa có tên khách'}</span><span>Ngày nhận: {date(item.check_in)} · Ngày trả: {date(item.check_out)}</span><strong>Đã xác nhận cọc · {money(item.paid_deposit)}</strong></div>
+                <div className="reception-no-show-action"><span className={countdown.ready?'is-overdue':'is-waiting'}>{countdown.text}</span><button type="button" className="btn ghost" disabled={!countdown.ready||noShowBusy===item.id} onClick={()=>confirmNoShow(item)}>{noShowBusy===item.id?'Đang xử lý…':countdown.ready?'Xác nhận khách không đến':'Có thể xác nhận sau 1 giờ'}</button><small>Hủy booking, mở lại phòng và không hoàn cọc.</small></div>
+              </article>})}
+            </div>
+          </details>
 
           {scanning && <QrScannerBox onScan={handleScan} onClose={() => setScanning(false)} />}
 
@@ -276,6 +380,7 @@ export default function Reception() {
                 <div>
                   <b>{booking.booking_code}</b>
                   <span>Khách: {booking.full_name || '—'} · Phòng {booking.room_number} · {roomTypeLabel(booking.room_type_name)}</span>
+                  <span>CCCD: {booking.id_card_number || 'Chưa cung cấp'} · Ngày cấp: {booking.id_card_issue_date ? new Date(`${String(booking.id_card_issue_date).slice(0,10)}T00:00:00`).toLocaleDateString('vi-VN') : 'Chưa có'}</span>
                 </div>
                 <div>
                   <span>{date(booking.check_in)} → {date(booking.check_out)}</span>
@@ -292,13 +397,29 @@ export default function Reception() {
 
               <div className="reception-actions">
                 {booking.status === 'PENDING_PAYMENT' && <span className="notice">Đặt phòng đang chờ xác nhận tiền cọc{canApprovePayments ? ' — xem tab "Duyệt thanh toán".' : '.'}</span>}
-                {booking.status === 'CONFIRMED' && <button className="btn dark" onClick={checkIn}>Nhận phòng</button>}
+                {booking.status === 'CONFIRMED' && <button className="btn dark" onClick={()=>checkIn()} disabled={checkInBusy}>{checkInBusy?'Đang check-in…':'Nhận phòng'}</button>}
                 {booking.status === 'CHECKED_IN' && (
                   <>
                     <label>Phụ phí trả phòng muộn
                       <input type="number" min="0" value={surcharge} onChange={e => setSurcharge(e.target.value)} />
                     </label>
-                    <button className="btn dark" onClick={checkOut} disabled={checkoutBusy}>{checkoutBusy ? 'Đang xử lý…' : 'Trả phòng'}</button>
+                    {checkoutInvoice && <div className="notice" style={{width:'100%',margin:'0 0 12px'}}>
+                      <b>Thanh toán khi trả phòng</b>
+                      <div>Tổng hóa đơn: {money(checkoutGrandTotal)} · Đã thanh toán: {money(checkoutPaid)}</div>
+                      {checkoutRemaining>0 && checkoutPaymentPending ? <div>Có khoản thanh toán đang chờ xác nhận. Vui lòng xử lý trong mục <b>Duyệt thanh toán</b>, sau đó tìm lại booking để cập nhật.</div> : checkoutRemaining>0 ? <>
+                        <div><b>Còn phải thu: {money(checkoutRemaining)}</b></div>
+                        <label>Phương thức đã nhận
+                          <select value={checkoutPaymentMethod} onChange={e=>setCheckoutPaymentMethod(e.target.value)}>
+                            <option value="CASH">Tiền mặt tại quầy</option>
+                            <option value="BANK_TRANSFER">Chuyển khoản (đã kiểm tra)</option>
+                          </select>
+                        </label>
+                        <button type="button" className="btn ghost" onClick={collectCheckoutPayment} disabled={checkoutBusy}>
+                          {checkoutBusy?'Đang ghi nhận…':`Xác nhận đã thu ${money(checkoutRemaining)}`}
+                        </button>
+                      </> : <div>Đã thanh toán đủ. Có thể hoàn tất trả phòng.</div>}
+                    </div>}
+                    <button className="btn dark" onClick={checkOut} disabled={checkoutBusy || !checkoutInvoice || checkoutRemaining>0}>{checkoutBusy ? 'Đang xử lý…' : 'Trả phòng'}</button>
                   </>
                 )}
               </div>
@@ -359,6 +480,7 @@ export default function Reception() {
             <div className="invoice-line"><span>Giá phòng</span><b>{money(invoiceData.invoice.roomTotal)}</b></div>
             {invoiceData.services.map(sv=><div className="invoice-line" key={sv.id}><span>{sv.name}<small style={{display:'block'}}>Đơn giá: {money(sv.unit_price)} · Số lượng: {sv.quantity}</small></span><b>{money(Number(sv.quantity)*Number(sv.unit_price))}</b><div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap',justifyContent:'flex-end'}}><button type="button" className="btn ghost" disabled={Number(sv.quantity)<=1} onClick={()=>editInvoiceService(sv,Number(sv.quantity)-1)} aria-label={`Giảm số lượng ${sv.name}`}>−</button><b>{sv.quantity}</b><button type="button" className="btn ghost" disabled={Number(sv.quantity)>=50} onClick={()=>editInvoiceService(sv,Number(sv.quantity)+1)} aria-label={`Tăng số lượng ${sv.name}`}>+</button><button type="button" className="btn ghost" onClick={()=>editInvoiceService(sv,'cancel')}>Bỏ dịch vụ</button></div></div>)}
             {!invoiceData.services.length && <div className="empty">Chưa có dịch vụ phát sinh trong hóa đơn.</div>}
+            {!!invoiceCatalog.length && <section className="reception-invoice-services"><b>Dịch vụ có thể thêm</b><small>Chưa thêm sẽ hiển thị mờ; dịch vụ đã có trong hóa đơn sẽ hiện rõ.</small>{invoiceCatalog.map(service=>{const added=invoiceData.services.some(item=>item.service_id===service.id);return <div className={`reception-invoice-service ${added?'is-added':'is-available'}`} key={service.id}><span><b>{service.name}</b><small>{service.description||'Dịch vụ tại khách sạn'}</small></span><strong>{money(service.price)}</strong>{added?<b className="reception-invoice-service-state">Đã thêm</b>:<><input aria-label={`Số lượng ${service.name}`} type="number" min="1" max="50" value={invoiceServiceQuantities[service.id]||1} onChange={e=>setInvoiceServiceQuantities(current=>({...current,[service.id]:e.target.value}))}/><button type="button" className="btn ghost" disabled={addingInvoiceService===service.id} onClick={()=>addInvoiceService(service)}>{addingInvoiceService===service.id?'Đang thêm…':'Thêm'}</button></>}</div>})}</section>}
             {invoiceData.invoice.surcharge>0&&<div className="invoice-line"><span>Phụ phí</span><b>{money(invoiceData.invoice.surcharge)}</b></div>}
             <div className="invoice-line"><span>Đã thanh toán / tiền cọc</span><b>{money(invoiceData.invoice.depositTotal)}</b></div>
             <div className="invoice-line total"><span>Tổng hóa đơn</span><b>{money(invoiceData.invoice.grandTotal)}</b></div><div className="invoice-line total"><span>Còn phải trả</span><b>{money(invoiceData.invoice.remainingTotal)}</b></div>
@@ -366,23 +488,6 @@ export default function Reception() {
         </div>
       )}
 
-      {tab === 'kyc' && (
-        <div className="manage-list">
-          {kyc.map(u => (
-            <div className="manage-row" key={u.id}>
-              <div>
-                <b>{u.full_name}</b>
-                <span>{u.email} · CCCD: {u.id_card_number}</span>
-              </div>
-              {u.id_card_front_url && <a href={apiOrigin + u.id_card_front_url} target="_blank" rel="noreferrer"><img src={apiOrigin + u.id_card_front_url} alt="Mặt trước" style={{ height: 60 }} /></a>}
-              {u.id_card_back_url && <a href={apiOrigin + u.id_card_back_url} target="_blank" rel="noreferrer"><img src={apiOrigin + u.id_card_back_url} alt="Mặt sau" style={{ height: 60 }} /></a>}
-              <button className="btn dark" onClick={() => reviewKyc(u, 'VERIFIED')}>Xác thực</button>
-              <button className="btn ghost" onClick={() => reviewKyc(u, 'REJECTED')}>Từ chối</button>
-            </div>
-          ))}
-          {!kyc.length && <div className="empty">Không có hồ sơ CCCD nào đang chờ duyệt.</div>}
-        </div>
-      )}
     </main>
   );
 }

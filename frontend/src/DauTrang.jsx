@@ -145,7 +145,6 @@ export default function SiteHeader({ user, onLogout }) {
     { label: 'Dọn phòng', to: '/reception?tab=housekeeping', icon: 'clean' },
     ...(['ADMIN','RECEPTIONIST'].includes(role) ? [{ label: 'Duyệt thanh toán', to: '/reception?tab=payments', icon: 'payment' }] : []),
     { label: 'Hóa đơn', to: '/reception?tab=invoice', icon: 'payment' },
-    { label: 'Duyệt CCCD', to: '/reception?tab=kyc', icon: 'id' },
   ];
   const adminCoreItems = [
     { label: 'Tổng quan', to: '/admin?tab=dashboard', icon: 'chart' },
@@ -256,7 +255,7 @@ export default function SiteHeader({ user, onLogout }) {
           </div>}
           {(role === 'CUSTOMER' ? [
             {label:'Phòng của tôi',to:'/account?tab=rooms',icon:'room'}, {label:'Dịch vụ',to:'/account?tab=rooms#my-room-services',icon:'service'}, {label:'Hồ sơ',to:'/account?tab=profile',icon:'user'},
-            {label:'Bảo mật',to:'/account?tab=security',icon:'manage'}, {label:'Xác thực CCCD',to:'/account?tab=kyc',icon:'id'}
+            {label:'Bảo mật',to:'/account?tab=security',icon:'manage'}
           ] : role === 'RECEPTIONIST' ? receptionItems.concat([{label:'Chấm công & lương',to:'/account?tab=attendance',icon:'manage'}]) : role === 'STAFF' ? [
             {label:'Dọn phòng',to:'/account?tab=housekeeping',icon:'clean'}, {label:'Chấm công & lương',to:'/account?tab=attendance',icon:'manage'}
           ] : role === 'MANAGER' || role === 'ADMIN' ? adminCoreItems.concat(directAdminItems) : []).map(item => <Link key={item.label} to={item.to} onClick={() => setMenuOpen(false)}><Icon name={item.icon}/>{item.label}</Link>)}

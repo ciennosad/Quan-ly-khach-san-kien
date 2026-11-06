@@ -88,13 +88,17 @@ export const serviceDisplay=service=>({
 });
 export const roomTypeLabel=(name,description='')=>{
   const n=`${name||''} ${description||''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const countBeds=value=>[...String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').matchAll(/(\d+)\s*giuong\b/g)].reduce((total,match)=>total+Number(match[1]),0);
-  const bedCount=countBeds(name)||countBeds(description);
-  if(/phong nhom|group|tap the|dorm/.test(n)) return bedCount?`Phòng nhóm · ${bedCount} giường`:'Phòng nhóm';
-  if(/family|gia dinh/.test(n)) return `Phòng gia đình · ${bedCount||1} giường${bedCount===1?' lớn':''}`;
-  if(/cao cap|premium|suite|deluxe/.test(n)) return `Phòng cao cấp · ${bedCount||1} giường`;
-  if(/standard|phong thuong|single|phong don/.test(n)) return `Phòng thường · ${bedCount||1} giường`;
-  if(/twin|double|phong doi/.test(n)) return `Phòng đôi · ${bedCount||2} giường`;
+  const groupGuests=n.match(/phong nhom ([5-8]) khach/);
+  if(groupGuests){const beds={5:3,6:3,7:4,8:5}[Number(groupGuests[1])];return `Phòng nhóm · ${beds} giường`;}
+  if(/(?:5|five)\s*(?:giuong|bed)|tap the|dorm/.test(n)) return 'Phòng tập thể 5 giường';
+  if(/family|gia dinh/.test(n)) return 'Phòng gia đình · 1 giường lớn';
+  if(/cao cap|premium|suite|deluxe/.test(n)) {
+    if(/(?:2|two|twin|double)\s*(?:giuong|bed)|giuong doi|sofa rieng|suite/.test(n)) return 'Phòng cao cấp · 2 giường';
+    return 'Phòng cao cấp · 1 giường';
+  }
+  if(/(?:2|two)\s*(?:giuong|bed)|twin|double|phong doi/.test(n)) return 'Phòng thường · 2 giường';
+  if(/standard|phong thuong|single|phong don/.test(n)) return 'Phòng thường · 1 giường';
+  if(/single|1\s*(?:giuong|bed)|phong don/.test(n)) return 'Phòng thường · 1 giường';
   return name||'Phòng';
 };
 export const roomTypeTitle=(name,description='')=>roomTypeLabel(name,description).split(' · ')[0];

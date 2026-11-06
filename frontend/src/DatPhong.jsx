@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { api, money, assetUrl, roomTypeLabel, roomTypeTitle, roomTypeBedInfo, serviceDisplay } from './KetNoiAPI';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { api, money, assetUrl, roomTypeLabel, roomTypeTitle, roomTypeBedInfo } from './KetNoiAPI';
 import { getRoomGallery } from './AnhPhongMacDinh';
 
 function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -55,6 +55,8 @@ export default function Booking() {
   const [selectedServices, setSelectedServices] = useState({});
   const [form, setForm] = useState({ checkIn: '', checkOut: '', guests: 1, depositAmount: 0, discountCode: '', paymentMethod: 'BANK_TRANSFER', customerPhone: '' });
   const [phoneLoaded, setPhoneLoaded] = useState(false);
+  const [profileIdCardNumber, setProfileIdCardNumber] = useState('');
+  const [profileIdCardIssueDate, setProfileIdCardIssueDate] = useState('');
   const [calendarBlocked, setCalendarBlocked] = useState(new Set());
   const [calendarBlockedCheckout, setCalendarBlockedCheckout] = useState(new Set());
   const [openCalendar, setOpenCalendar] = useState('');
@@ -71,7 +73,7 @@ export default function Booking() {
 
   useEffect(() => { api('/rooms').then(x => setRoom(x.find(r => r.id === id))) }, [id]);
   useEffect(() => { api('/services').then(setServices).catch(() => setServices([])); }, []);
-  useEffect(() => { api('/account/profile').then(p => { setForm(f => ({ ...f, customerPhone: p.phone || '' })); setPhoneLoaded(true); }).catch(() => setPhoneLoaded(true)); }, []);
+  useEffect(() => { api('/account/profile').then(p => { setForm(f => ({ ...f, customerPhone: p.phone || '' })); setProfileIdCardNumber(p.id_card_number||''); setProfileIdCardIssueDate(String(p.id_card_issue_date||'').slice(0,10)); setPhoneLoaded(true); }).catch(() => setPhoneLoaded(true)); }, []);
   useEffect(() => {
     if(!room) return;
     let active=true;
@@ -101,6 +103,7 @@ export default function Booking() {
 
   const roomImages = getRoomGallery(room);
   const hasUploadedRoomImages = Array.isArray(room.images) && room.images.some(Boolean);
+  const identityReady = /^\d{12}$/.test(String(profileIdCardNumber || '')) && Boolean(profileIdCardIssueDate);
   const moveGallery = (step) => setGalleryIndex(index => (index + step + roomImages.length) % roomImages.length);
 
   async function checkDiscount() {
@@ -130,6 +133,7 @@ export default function Booking() {
     const normalizedPhone = String(form.customerPhone || '').replace(/[ .-]/g,'').trim();
     if (!normalizedPhone) { setMsg('Vui lòng nhập số điện thoại để hoàn tất đặt phòng.'); return; }
     if (!/^(?:\+84|0)\d{8,10}$/.test(normalizedPhone)) { setMsg('Số điện thoại không hợp lệ.'); return; }
+    if(!/^\d{12}$/.test(String(profileIdCardNumber||''))||!profileIdCardIssueDate){setMsg('Vui lòng cập nhật số CCCD và ngày cấp trong Hồ sơ trước khi đặt phòng.');return;}
     if (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > Number(room.capacity)) {
       setMsg(`Số khách phải từ 1 đến ${room.capacity}.`);
       return;
@@ -208,7 +212,16 @@ export default function Booking() {
                 <div className="notice" style={{gridColumn:'1/-1'}}>Giờ nhận phòng cố định <b>14:00</b> · giờ trả phòng tối đa <b>12:00</b>. Dọn phòng được tính trong khung <b>12:00–14:00</b>.</div>
                 <label>Số khách<input type="number" min="1" max={room.capacity} required value={form.guests} onChange={e => setForm({ ...form, guests: Number(e.target.value) })} /></label>
                 <label>Số điện thoại *<input type="tel" inputMode="tel" required value={form.customerPhone} onChange={e => setForm({ ...form, customerPhone: e.target.value })} placeholder="0901234567" /></label>
-                {services.length > 0 && <section className="booking-service-picker" style={{gridColumn:'1/-1'}}>
+                <section className={`booking-important-info ${identityReady ? 'is-ready' : 'is-required'}`}>
+                  <div className="booking-important-head">
+                    <div><span className="booking-important-eyebrow">Thông tin quan trọng</span><h3>CCCD dùng cho đặt phòng</h3></div>
+                    <span className="booking-important-state">{identityReady ? 'Đã cập nhật' : 'Bắt buộc'}</span>
+                  </div>
+                  <label>4 số cuối CCCD<input readOnly value={profileIdCardNumber ? `********${String(profileIdCardNumber).slice(-4)}` : 'Chưa cập nhật'} /></label>
+                  {identityReady
+                    ? <p>Thông tin CCCD đã được cập nhật trong Hồ sơ. Lễ tân chỉ thấy 4 số cuối để đối chiếu.</p>
+                    : <p>Cần cập nhật số CCCD và ngày cấp trong <Link to="/account?tab=profile">Hồ sơ</Link> trước khi tiếp tục đặt phòng.</p>}
+                </section>                {services.length > 0 && <section className="booking-service-picker" style={{gridColumn:'1/-1'}}>
                   <div><b>Chọn dịch vụ cho kỳ lưu trú <small>(tùy chọn)</small></b><p>Dịch vụ được lưu là dự kiến và chỉ tính vào hóa đơn khi Lễ tân xác nhận nhận phòng.</p></div>
                   <div className="booking-service-options">{services.map(s => {
                     const chosen=!!selectedServices[s.id];
@@ -233,7 +246,7 @@ export default function Booking() {
                 </label>
                 {discountPreview && <p className="notice" style={{ padding: '8px 0' }}>{discountPreview.error || discountPreview.label}</p>}
                 {form.checkIn && form.checkOut && new Date(`${form.checkOut}T12:00:00+07:00`)>new Date(`${form.checkIn}T14:00:00+07:00`) && (()=>{const n=Math.ceil((new Date(`${form.checkOut}T12:00:00+07:00`)-new Date(`${form.checkIn}T14:00:00+07:00`))/(24*60*60*1000));const base=Number(roomPricing?.total ?? (Number(room.base_price)*n));const disc=discountPreview&&!discountPreview.error?(discountPreview.percentOff>0?Math.round(base*discountPreview.percentOff/100):Math.min(base,discountPreview.amountOff)):0;const final=Math.max(0,base-disc);return <div className="booking-estimate"><span>Tạm tính</span><b>{money(final)}</b><small>{n} đêm · {form.guests} khách{disc>0?` · Đã giảm ${money(disc)}`:''}</small></div>})()}
-                <button className="btn dark" disabled={submitting || !phoneLoaded}>{submitting ? 'Đang tạo đặt phòng…' : 'Xác nhận đặt phòng'}</button>
+                <button className="btn dark" disabled={submitting || !phoneLoaded || !identityReady}>{submitting ? 'Đang tạo đặt phòng…' : 'Xác nhận đặt phòng'}</button>
               </form>
             )}
 

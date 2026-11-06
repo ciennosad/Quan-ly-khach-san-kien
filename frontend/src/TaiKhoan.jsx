@@ -31,14 +31,17 @@ function ReviewBox({ booking, onDone }) {
 }
 
 function ProfileTab({ profile, onSaved }) {
-  const [form, setForm] = useState({ fullName: profile.full_name || '', phone: profile.phone || '', address: profile.address || '' });
+  const [form, setForm] = useState({ fullName: profile.full_name || '', phone: profile.phone || '', address: profile.address || '', idCardNumber: profile.id_card_number || '', idCardIssueDate: String(profile.id_card_issue_date || '').slice(0,10) });
   const [msg, setMsg] = useState('');
 
   async function submit(e) {
     e.preventDefault();
     setMsg('');
+    const idCardNumber=String(form.idCardNumber||'').trim();
+    const idCardIssueDate=String(form.idCardIssueDate||'').trim();
+    if((idCardNumber||idCardIssueDate)&&(!/^\d{12}$/.test(idCardNumber)||!idCardIssueDate)) { setMsg('Nhập đủ số CCCD 12 chữ số và ngày cấp, hoặc xóa cả hai trường.'); return; }
     try {
-      const updated = await api('/account/profile', { method: 'PATCH', body: JSON.stringify(form) });
+      const updated = await api('/account/profile', { method: 'PATCH', body: JSON.stringify({ ...form, idCardNumber, idCardIssueDate }) });
       const u = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...u, fullName: updated.full_name }));
       onSaved(updated);
@@ -52,6 +55,11 @@ function ProfileTab({ profile, onSaved }) {
       <label>Số điện thoại<input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></label>
       <label>Địa chỉ<input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></label>
       <label>Thư điện tử (không thể đổi)<input value={profile.email} disabled /></label>
+      {profile.role === 'CUSTOMER' && <>
+        <label>Số CCCD<input type="text" inputMode="numeric" autoComplete="off" maxLength="12" value={form.idCardNumber} onChange={e => setForm({ ...form, idCardNumber: e.target.value.replace(/\D/g,'').slice(0,12) })} placeholder="Nhập đủ 12 chữ số" /></label>
+        <label>Ngày cấp CCCD<input type="date" max={new Date().toISOString().slice(0,10)} value={form.idCardIssueDate} onChange={e => setForm({ ...form, idCardIssueDate: e.target.value })} /></label>
+        <small style={{gridColumn:'1/-1'}}>Thông tin CCCD được dùng cho các lần đặt phòng của bạn. Lễ tân chỉ thấy 4 số cuối và ngày cấp.</small>
+      </>}
       <button className="btn dark">Lưu thay đổi</button>
       {msg && <span className="notice" style={{ marginTop: 0 }}>{msg}</span>}
     </form>
@@ -106,39 +114,6 @@ function SecurityTab() {
       <button className="btn dark">Đổi mật khẩu</button>
       {msg && <span className="notice" style={{ marginTop: 0 }}>{msg}</span>}
     </form>
-  );
-}
-
-const KYC_LABEL = { NONE: 'Chưa xác thực', PENDING: 'Đang chờ duyệt', VERIFIED: 'Đã xác thực', REJECTED: 'Bị từ chối' };
-const REFUND_STATUS_LABEL = { PENDING: 'Đang chờ hoàn tiền', APPROVED: 'Đã duyệt — chờ chuyển', SUCCESS: 'Đã hoàn', REJECTED: 'Từ chối' };
-
-function KycTab({ profile, onSaved }) {
-  const [idCardNumber, setIdCardNumber] = useState('');
-  const [msg, setMsg] = useState('');
-
-  async function submit(e) {
-    e.preventDefault();
-    setMsg('');
-    const front = e.target.idFront.files[0], back = e.target.idBack.files[0];
-    if (!front || !back) { setMsg('Vui lòng chọn đủ ảnh mặt trước và mặt sau.'); return; }
-    const fd = new FormData();
-    fd.append('idCardNumber', idCardNumber);
-    fd.append('idFront', front); fd.append('idBack', back);
-    try{ const data=await api('/account/kyc',{method:'POST',body:fd}); onSaved(data); setMsg('Đã gửi hồ sơ, vui lòng chờ nhân viên xác thực.'); }
-    catch(err){ setMsg(err.message); }
-  }
-
-  return (
-    <>
-      <p>Trạng thái hiện tại: <b className={`status ${profile.kyc_status?.toLowerCase()}`}>{KYC_LABEL[profile.kyc_status] || 'Chưa xác định'}</b>{profile.kyc_note && <span> — {profile.kyc_note}</span>}</p>
-      <form onSubmit={submit} className="manage-form">
-        <label>Số CCCD/CMND<input value={idCardNumber} onChange={e => setIdCardNumber(e.target.value)} required /></label>
-        <label>Ảnh mặt trước<input type="file" name="idFront" accept="image/*" required /></label>
-        <label>Ảnh mặt sau<input type="file" name="idBack" accept="image/*" required /></label>
-        <button className="btn dark">Gửi xác thực</button>
-        {msg && <span className="notice" style={{ marginTop: 0 }}>{msg}</span>}
-      </form>
-    </>
   );
 }
 
@@ -626,7 +601,6 @@ function MyRoomsTab({ bookings, profile, onReload, onCancel, onOpenInvoices, msg
         <nav className="customer-side-nav customer-side-account-nav">
           <Link to="/account?tab=profile"><span>♙</span>Hồ sơ</Link>
           <Link to="/account?tab=security"><span>◈</span>Bảo mật</Link>
-          <Link to="/account?tab=kyc"><span>▤</span>Xác thực CCCD</Link>
         </nav>
         <div className="customer-side-help"><b>Hỗ trợ 24/7</b><small>LUXORA luôn sẵn sàng phục vụ bạn</small><span>1900 1234</span></div>
       </aside>
@@ -657,11 +631,11 @@ function MyRoomsTab({ bookings, profile, onReload, onCancel, onOpenInvoices, msg
                 <div className="customer-booking-room"><div className="customer-room-placeholder">{latest.room_number}</div><div><span className="eyebrow">PHÒNG {latest.room_number}</span><h4>{roomTypeLabel(latest.room_type_name)}</h4><b>{latest.booking_code}</b></div></div>
                 <div className="customer-booking-meta"><span>Nhận phòng<b>{date(latest.check_in)}</b></span><span>Trả phòng<b>{date(latest.check_out)}</b></span><span>Trạng thái<b><span className={`status ${(latest.status || '').toLowerCase()}`}>{bookingStatusLabel(latest.status)}</span></b></span><span>Giá phòng<b>{money(latest.room_price)}</b></span></div>
                 <div className="customer-booking-actions"><button className="btn dark" onClick={() => setExpanded(expanded === latest.id ? null : latest.id)}>{expanded === latest.id ? 'Thu gọn' : 'Xem chi tiết'} <span>→</span></button>{['PENDING_PAYMENT','CONFIRMED'].includes(latest.status) && <button className="btn ghost" onClick={() => onCancel(latest)}>Hủy đặt phòng</button>}</div>
-                {expanded === latest.id && <div className="my-room-detail customer-feature-detail"><InvoiceRow booking={latest} /></div>}
+                {expanded === latest.id && <div className="my-room-detail customer-feature-detail"><p>CCCD: {latest.id_card_number ? `********${String(latest.id_card_number).slice(-4)}` : 'Chưa cập nhật'}</p><InvoiceRow booking={latest} /></div>}
               </div> : <div className="empty">Bạn chưa có đặt phòng nào.</div>}
 
               {bookings.length > 1 && <div className="customer-booking-history">
-                {(showAllHistory ? bookings.slice(1) : bookings.slice(1, 4)).map(x => <div className="customer-history-item" key={x.id}><div><b>Phòng {x.room_number}</b><span>{roomTypeLabel(x.room_type_name)}</span></div><div><b>{x.booking_code}</b><span>{date(x.check_in)} → {date(x.check_out)}</span></div><span className={`status ${(x.status || '').toLowerCase()}`}>{bookingStatusLabel(x.status)}</span><button className="btn ghost" onClick={() => setExpanded(expanded === x.id ? null : x.id)}>{expanded === x.id ? 'Thu gọn' : 'Chi tiết'}</button>{expanded === x.id && <div className="customer-history-detail"><InvoiceRow booking={x} />{x.status === 'COMPLETED' && <ReviewBox booking={x} onDone={onReload} />}</div>}</div>)}
+                {(showAllHistory ? bookings.slice(1) : bookings.slice(1, 4)).map(x => <div className="customer-history-item" key={x.id}><div><b>Phòng {x.room_number}</b><span>{roomTypeLabel(x.room_type_name)}</span></div><div><b>{x.booking_code}</b><span>{date(x.check_in)} → {date(x.check_out)}</span></div><span className={`status ${(x.status || '').toLowerCase()}`}>{bookingStatusLabel(x.status)}</span><button className="btn ghost" onClick={() => setExpanded(expanded === x.id ? null : x.id)}>{expanded === x.id ? 'Thu gọn' : 'Chi tiết'}</button>{expanded === x.id && <div className="customer-history-detail"><p>CCCD: {x.id_card_number ? `********${String(x.id_card_number).slice(-4)}` : 'Chưa cập nhật'}</p><InvoiceRow booking={x} />{x.status === 'COMPLETED' && <ReviewBox booking={x} onDone={onReload} />}</div>}</div>)}
                 {bookings.length > 4 && <button className="customer-history-toggle" onClick={() => setShowAllHistory(v => !v)}>{showAllHistory ? 'Thu gọn lịch sử' : `Xem thêm ${bookings.length - 4} đặt phòng`}</button>}
               </div>}
             </div>
@@ -679,7 +653,7 @@ function MyRoomsTab({ bookings, profile, onReload, onCancel, onOpenInvoices, msg
           </div>
 
           <aside className="customer-right-column">
-            <div className="customer-panel customer-profile-panel"><div className="customer-panel-head"><div><span className="eyebrow">TÀI KHOẢN</span><h3>Thông tin tài khoản</h3></div></div><div className="customer-avatar">{customerName.charAt(0).toUpperCase()}</div><h4>{customerName}</h4><p>{profile?.email || ''}</p><dl><div><dt>Số điện thoại</dt><dd>{profile?.phone || 'Chưa cập nhật'}</dd></div><div><dt>CCCD</dt><dd>{profile?.id_card_number || 'Chưa cập nhật'}</dd></div><div><dt>Địa chỉ</dt><dd>{profile?.address || 'Chưa cập nhật'}</dd></div></dl><Link className="btn ghost customer-profile-edit" to="/account?tab=profile">✎ Chỉnh sửa thông tin</Link></div>
+            <div className="customer-panel customer-profile-panel"><div className="customer-panel-head"><div><span className="eyebrow">TÀI KHOẢN</span><h3>Thông tin tài khoản</h3></div></div><div className="customer-avatar">{customerName.charAt(0).toUpperCase()}</div><h4>{customerName}</h4><p>{profile?.email || ''}</p><dl><div><dt>Số điện thoại</dt><dd>{profile?.phone || 'Chưa cập nhật'}</dd></div><div><dt>Địa chỉ</dt><dd>{profile?.address || 'Chưa cập nhật'}</dd></div></dl><Link className="btn ghost customer-profile-edit" to="/account?tab=profile">✎ Chỉnh sửa thông tin</Link></div>
             <div className="customer-panel customer-status-panel"><div className="customer-panel-head"><div><span className="eyebrow">TRẠNG THÁI</span><h3>Đặt phòng của bạn</h3></div></div><div className="customer-status-row"><span>Đang lưu trú</span><b>{active.length}</b></div><div className="customer-status-row"><span>Đã hoàn tất / hủy</span><b>{past.length}</b></div><div className="customer-status-row"><span>Tổng đặt phòng</span><b>{bookings.length}</b></div></div>
           </aside>
         </section>
@@ -834,7 +808,7 @@ export default function Account() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || (new URLSearchParams(window.location.search).get('attendanceToken') && ['STAFF','RECEPTIONIST'].includes(user.role) ? 'attendance' : null);
-  const allowedInitialTabs = ['profile','security','attendance','housekeeping','kyc','rooms','invoices','refunds','history'];
+  const allowedInitialTabs = ['profile','security','attendance','housekeeping','rooms','invoices','refunds','history'];
   const [tab, setTab] = useState(allowedInitialTabs.includes(initialTab) ? initialTab : 'profile');
   const standaloneCustomerTab = !isStaff && ['rooms', 'invoices', 'refunds', 'history'].includes(tab);
   useEffect(() => {
@@ -853,7 +827,7 @@ export default function Account() {
     try {
       const updated = await api(`/bookings/${x.booking_code}/cancel`, { method: 'POST', body: JSON.stringify({ reason: 'Khách tự hủy' }) });
       setB(list => list.map(y => y.id === x.id ? { ...y, ...updated } : y));
-      setMsg('Đã hủy đặt phòng. Nếu bạn đã đặt cọc, khoản hoàn tiền sẽ được xử lý sớm.');
+      setMsg(updated.refundEligible ? 'Đã hủy đặt phòng. Yêu cầu hoàn cọc đã được gửi để xử lý.' : updated.depositPaid ? 'Đã hủy đặt phòng. Yêu cầu hủy được gửi ngoài thời hạn hoàn cọc nên không phát sinh hoàn tiền.' : 'Đã hủy đặt phòng. Booking chưa có khoản cọc đã xác nhận cần hoàn.');
     } catch (e) { setMsg(e.message); }
   }
 
@@ -862,7 +836,6 @@ export default function Account() {
     ['security', 'Bảo mật'],
     ...(['STAFF','RECEPTIONIST'].includes(user.role) ? [['attendance','Chấm công & lương']] : []),
     ...(user.role === 'STAFF' ? [['housekeeping','Dọn phòng']] : []),
-    ['kyc', 'Xác thực CCCD'],
   ];
 
   if (!profile) return <div className="center-page">Đang tải…</div>;
@@ -889,7 +862,6 @@ export default function Account() {
 
       {tab === 'profile' && <ProfileTab profile={profile} onSaved={setProfile} />}
       {tab === 'security' && <SecurityTab />}
-      {tab === 'kyc' && <KycTab profile={profile} onSaved={setProfile} />}
       {tab === 'attendance' && ['STAFF','RECEPTIONIST'].includes(user.role) && <PayrollTab user={user} />}
       {tab === 'housekeeping' && user.role === 'STAFF' && <StaffHousekeepingTab />}
 

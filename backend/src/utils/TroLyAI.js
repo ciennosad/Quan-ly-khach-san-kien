@@ -19,8 +19,9 @@ function roleFromHeading(line,current){
   return current;
 }
 
-export function relevantKnowledge(message,role='GUEST',history=[]){
-  const file=process.env.CHATBOT_KNOWLEDGE_PATH||defaultKnowledgePath;
+export function relevantKnowledge(message,role='GUEST'){
+  const customerKnowledgePath=path.resolve(__dirname,'../../../DU_LIEU_HUAN_LUYEN_CHATBOT_KHACH_HANG_TAM_THOI.md');
+  const file=process.env.CHATBOT_KNOWLEDGE_PATH||(role==='GUEST'||role==='CUSTOMER'?customerKnowledgePath:defaultKnowledgePath);
   let source='';
   try{source=fs.readFileSync(file,'utf8')}catch{return 'Chỉ sử dụng dữ liệu hệ thống được cung cấp. Nếu không có nguồn xác thực, hãy nói rõ và hướng người dùng đến nhân viên.'}
   const lines=source.split(/\r?\n/);

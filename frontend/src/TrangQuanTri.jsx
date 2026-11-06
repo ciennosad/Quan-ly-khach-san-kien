@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, money, date, roleLabel, bookingStatusLabel, roomStatusLabel, paymentTypeLabel, paymentStatusLabel, roomTypeLabel, assetUrl } from './KetNoiAPI';
+import { api, money, date, roleLabel, bookingStatusLabel, roomStatusLabel, paymentTypeLabel, paymentStatusLabel, roomTypeLabel, roomTypeBedInfo, assetUrl } from './KetNoiAPI';
 
+function formatPriceInput(value){
+  return String(value??'').replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
 function uniqueRoomTypes(types){
   const byLabel=new Map();
   for(const type of types){
@@ -174,8 +177,12 @@ export default function AdminHome() {
   const [services, setServices] = useState([]);
   const [newService, setNewService] = useState({ name: '', description: '', price: '' });
   const [maintenance, setMaintenance] = useState([]);
-  const [newType, setNewType] = useState({ name: '', description: '', capacity: 2, basePrice: '' });
-  const [newRoom, setNewRoom] = useState({ roomNumber: '', roomTypeId: '' });
+  const [newRoom, setNewRoom] = useState({ roomNumber: '', category: 'Phòng thường', doubleBeds: 1, singleBeds: 0, description: '', basePrice: 1200000 });
+  const [expandedRooms, setExpandedRooms] = useState({});
+  const [showAddRoom, setShowAddRoom] = useState(false);
+  const [roomLoadError, setRoomLoadError] = useState('');
+  const [editingRoomPrice, setEditingRoomPrice] = useState(null);
+  const [priceFieldFocused, setPriceFieldFocused] = useState(false);
   const [newUser, setNewUser] = useState({ fullName: '', email: '', phone: '', password: '' });
   const [newUserMsg, setNewUserMsg] = useState('');
 
@@ -214,7 +221,15 @@ export default function AdminHome() {
   }, [tab]);
   useEffect(() => { if (tab === 'users') api('/admin/users').then(setUsers); }, [tab]);
   useEffect(() => { if (tab === 'logs') api('/admin/audit-logs').then(setLogs); }, [tab]);
-  useEffect(() => { if (tab === 'rooms') { api('/admin/room-types').then(setTypes); api('/rooms').then(setRooms); } }, [tab]);
+  useEffect(() => {
+    if (tab !== 'rooms') return;
+    setRoomLoadError('');
+    Promise.all([api('/admin/room-types'),api('/rooms')]).then(([roomTypes,roomList])=>{
+      setTypes(roomTypes);
+      setRooms(roomList);
+      setExpandedRooms(current=>current&&Object.keys(current).length?current:(roomList[0]?{[roomList[0].id]:true}:{}));
+    }).catch(error=>setRoomLoadError(error.message||'Không tải được danh sách phòng.'));
+  }, [tab]);
   useEffect(() => { if (tab === 'services') api('/admin/services').then(setServices); }, [tab]);
   useEffect(() => { if (tab === 'maintenance') api('/admin/maintenance').then(setMaintenance); }, [tab]);
   useEffect(() => { if (tab === 'refunds' && ['ADMIN','MANAGER'].includes(user.role)) api('/admin/refunds').then(setRefunds); }, [tab, user.role]);
@@ -286,29 +301,33 @@ export default function AdminHome() {
     } catch (e) { setNewUserMsg(e.message); }
   }
 
-  async function createType(e) {
-    e.preventDefault();
-    const t = await api('/admin/room-types', { method: 'POST', body: JSON.stringify(newType) });
-    setTypes(list => [...list, t]);
-    setNewType({ name: '', description: '', capacity: 2, basePrice: '' });
-  }
   async function updateTypePrice(t, value) {
     const amount = Number(value);
-    if (!Number.isFinite(amount) || amount < 0) { alert('Giá phòng phải là số lớn hơn hoặc bằng 0'); return; }
+    if (String(value).trim()==='' || !Number.isFinite(amount) || amount < 0) { alert('Giá phòng phải là số lớn hơn hoặc bằng 0'); return false; }
     try {
       const updated = await api(`/admin/room-types/${t.id}`, { method: 'PATCH', body: JSON.stringify({ basePrice: amount }) });
       setTypes(list => list.map(x => x.id === t.id ? { ...x, ...updated } : x));
+      setRooms(list => list.map(room => room.room_type_id === t.id ? { ...room, ...updated, base_price: updated.base_price ?? amount } : room));
+      return true;
     } catch (e) { alert(e.message); }
-  }
-  async function deleteType(id) {
-    try { await api(`/admin/room-types/${id}`, { method: 'DELETE' }); setTypes(list => list.filter(t => t.id !== id)); }
-    catch (e) { alert(e.message); }
+    return false;
   }
   async function createRoom(e) {
     e.preventDefault();
-    const r = await api('/admin/rooms', { method: 'POST', body: JSON.stringify(newRoom) });
-    setRooms(list => [...list, { ...r, room_type_name: types.find(t => t.id === newRoom.roomTypeId)?.name, description: types.find(t => t.id === newRoom.roomTypeId)?.description }]);
-    setNewRoom({ roomNumber: '', roomTypeId: '' });
+    const capacity=Number(newRoom.doubleBeds)*2+Number(newRoom.singleBeds);
+    if(capacity<1){alert('Phòng cần ít nhất 1 giường để có sức chứa.');return;}
+    const bedText=[Number(newRoom.doubleBeds)?`${newRoom.doubleBeds} giường đôi`:null,Number(newRoom.singleBeds)?`${newRoom.singleBeds} giường đơn`:null].filter(Boolean).join(' và ');
+    const description=newRoom.description.trim()||`${newRoom.category} gồm ${bedText}, phù hợp tối đa ${capacity} khách.`;
+    const basePrice=Number(newRoom.basePrice);
+    if(!Number.isFinite(basePrice)||basePrice<0){alert('Vui lòng nhập giá phòng hợp lệ.');return;}
+    try {
+      const r = await api('/admin/rooms', { method: 'POST', body: JSON.stringify({roomNumber:newRoom.roomNumber,roomType:{category:newRoom.category,doubleBeds:Number(newRoom.doubleBeds),singleBeds:Number(newRoom.singleBeds),description,basePrice}}) });
+      setRooms(list => [...list, r]);
+      setTypes(await api('/admin/room-types'));
+      setExpandedRooms(current=>({...current,[r.id]:true}));
+      setShowAddRoom(false);
+      setNewRoom({ roomNumber: '', category: 'Phòng thường', doubleBeds: 1, singleBeds: 0, description: '', basePrice: 1200000 });
+    } catch(error) { alert(error.message); }
   }
   async function updateRoomStatus(r, status) {
     const updated = await api(`/admin/rooms/${r.id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
@@ -544,60 +563,39 @@ export default function AdminHome() {
 
       {tab === 'rooms' && (
         <>
-          <h2>Loại phòng</h2>
-          <form onSubmit={createType} className="manage-form">
-            <label>Tên loại phòng<input value={newType.name} onChange={e => setNewType({ ...newType, name: e.target.value })} required /></label>
-            <label>Sức chứa<input type="number" min="1" value={newType.capacity} onChange={e => setNewType({ ...newType, capacity: e.target.value })} /></label>
-            <label>Giá / đêm<input type="number" min="0" value={newType.basePrice} onChange={e => setNewType({ ...newType, basePrice: e.target.value })} required /></label>
-            <label>Mô tả<input value={newType.description} onChange={e => setNewType({ ...newType, description: e.target.value })} /></label>
-            <button className="btn dark">Thêm loại phòng</button>
+          <div className="admin-room-section-head"><div><span className="eyebrow">KHU VỰC QUẢN LÝ</span><h2>Loại phòng</h2></div><button type="button" className="btn dark" onClick={()=>setShowAddRoom(true)}>+ Thêm phòng</button></div>
+          <p className="admin-room-list-help">Bấm mũi tên để thu gọn hoặc mở thông tin, mô tả và ảnh của từng phòng.</p>
+          {roomLoadError&&<div className="empty admin-room-error">Không tải được danh sách phòng: {roomLoadError}</div>}
+          {showAddRoom&&<div className="admin-room-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setShowAddRoom(false);}}><section className="admin-room-modal" role="dialog" aria-modal="true" aria-labelledby="admin-room-modal-title"><div className="admin-room-modal-head"><div><span className="eyebrow">CẤU HÌNH PHÒNG</span><h2 id="admin-room-modal-title">Thêm phòng</h2></div><button type="button" className="admin-room-modal-close" onClick={()=>setShowAddRoom(false)} aria-label="Đóng">×</button></div>
+          <form onSubmit={createRoom} className="admin-room-create">
+            <label>Số phòng<input value={newRoom.roomNumber} onChange={e=>setNewRoom({...newRoom,roomNumber:e.target.value})} required /></label>
+            <label>Loại phòng<select value={newRoom.category} onChange={e=>setNewRoom({...newRoom,category:e.target.value})}><option>Phòng thường</option><option>Phòng cao cấp</option><option>Phòng nhóm</option><option>Phòng gia đình</option></select></label>
+            <label>Giường đôi<select value={newRoom.doubleBeds} onChange={e=>setNewRoom({...newRoom,doubleBeds:Number(e.target.value)})}><option value="0">Không có</option>{[1,2,3,4].map(n=><option key={n} value={n}>{n} giường đôi</option>)}</select></label>
+            <label>Giường đơn<select value={newRoom.singleBeds} onChange={e=>setNewRoom({...newRoom,singleBeds:Number(e.target.value)})}><option value="0">Không có</option>{[1,2,3,4].map(n=><option key={n} value={n}>{n} giường đơn</option>)}</select></label>
+            <div className="admin-room-capacity"><small>SỨC CHỨA TỐI ĐA</small><b>{Number(newRoom.doubleBeds)*2+Number(newRoom.singleBeds)} khách</b><span>{Number(newRoom.doubleBeds)} giường đôi × 2 + {Number(newRoom.singleBeds)} giường đơn × 1</span></div>
+            <label className="admin-room-description">Mô tả phòng<textarea value={newRoom.description} onChange={e=>setNewRoom({...newRoom,description:e.target.value})} placeholder="Mô tả tự gợi ý theo số giường nếu để trống" /></label>
+            <label>Giá / đêm<input type="text" lang="en" dir="ltr" inputMode="numeric" value={priceFieldFocused?String(newRoom.basePrice??''):formatPriceInput(newRoom.basePrice)} onFocus={e=>{const input=e.currentTarget;setPriceFieldFocused(true);requestAnimationFrame(()=>input.select());}} onBlur={()=>setPriceFieldFocused(false)} onChange={e=>setNewRoom(current=>({...current,basePrice:e.target.value.replace(/\D/g,'')}))} placeholder="Ví dụ: 2,000,000" required /></label>
+            <div className="admin-room-create-note">Ảnh được thêm sau khi tạo phòng bằng chức năng ảnh hiện tại.</div>
+            <div className="admin-room-modal-actions"><button type="button" className="btn ghost" onClick={()=>setShowAddRoom(false)}>Hủy</button><button className="btn dark">Tạo phòng</button></div>
           </form>
-          <div className="manage-list">
-            {uniqueRoomTypes(types).map(t => (
-              <div className="manage-row" key={t.id}>
-                <div><b>{roomTypeLabel(t.name,t.description)}</b><span>{t.description} · tối đa {t.capacity} khách</span></div>
-                <label style={{display:'flex',alignItems:'center',gap:8,margin:0}}><span style={{whiteSpace:'nowrap'}}>Giá / đêm</span><input type="number" min="0" step="1000" defaultValue={Number(t.base_price)} onBlur={e=>updateTypePrice(t,e.target.value)} /></label>
-                <span style={{whiteSpace:'nowrap',fontWeight:700}}>{money(t.base_price)}</span>
-                <button type="button" className="btn ghost" onClick={() => { const value=window.prompt(`Nhập giá mới cho ${roomTypeLabel(t.name,t.description)} (đ/đêm):`, String(Number(t.base_price))); if(value!==null) updateTypePrice(t,value); }}>Sửa giá</button>
-                <button type="button" className="btn ghost" onClick={() => deleteType(t.id)}>Xóa</button>
-              </div>
-            ))}
-            {!types.length && <div className="empty">Chưa có loại phòng nào.</div>}
-          </div>
-
-          <h2 style={{ marginTop: 44 }}>Phòng</h2>
-          <form onSubmit={createRoom} className="manage-form">
-            <label>Số phòng<input value={newRoom.roomNumber} onChange={e => setNewRoom({ ...newRoom, roomNumber: e.target.value })} required /></label>
-            <label>Loại phòng
-              <select value={newRoom.roomTypeId} onChange={e => setNewRoom({ ...newRoom, roomTypeId: e.target.value })} required>
-                <option value="">-- Chọn --</option>
-                {uniqueRoomTypes(types).map(t => <option key={t.id} value={t.id}>{roomTypeLabel(t.name,t.description)}</option>)}
-              </select>
-            </label>
-            <button className="btn dark">Thêm phòng</button>
-          </form>
-          <div className="manage-list">
-            {rooms.map(r => (
-              <div className="manage-row admin-room-row" key={r.id}>
-                <div className="admin-room-meta">
-                  <div className="admin-room-title"><b>Phòng {r.room_number}</b><span>{roomTypeLabel(r.room_type_name,r.description)}</span></div>
-                  <label className="admin-room-status">Trạng thái<select value={r.status} onChange={e => updateRoomStatus(r, e.target.value)}>
-                    {ROOM_STATUSES.map(s => <option key={s} value={s}>{roomStatusLabel(s)}</option>)}
-                  </select></label>
-                  <button type="button" className="admin-room-delete" onClick={() => deleteRoom(r.id)}>Xóa phòng</button>
+          </section></div>}
+          <div className="admin-room-list">
+            {rooms.map(r=>{
+              const isExpanded=Boolean(expandedRooms[r.id]);
+              const beds=[Number(r.double_beds)>0?`${r.double_beds} giường đôi`:null,Number(r.single_beds)>0?`${r.single_beds} giường đơn`:null].filter(Boolean).join(' · ')||roomTypeBedInfo(r.room_type_name,r.description)||'Chưa khai báo số giường';
+              return <article className={`admin-room-card ${isExpanded?'is-expanded':''}`} key={r.id}>
+                <div className="admin-room-card-head">
+                  <button type="button" className="admin-room-collapse" onClick={()=>setExpandedRooms(current=>({...current,[r.id]:!current[r.id]}))} aria-expanded={isExpanded}><span className="admin-room-title"><b>Phòng {r.room_number}</b><span>{r.room_type_category||roomTypeLabel(r.room_type_name,r.description)} · {beds} · tối đa {r.capacity||'—'} khách</span></span><span className="admin-room-chevron">{isExpanded?'⌃':'⌄'}</span></button>
+                  <label className="admin-room-inline-status">Trạng thái<select value={r.status} onChange={e=>updateRoomStatus(r,e.target.value)}>{ROOM_STATUSES.map(s=><option key={s} value={s}>{roomStatusLabel(s)}</option>)}</select></label>
+                  <button type="button" className="admin-room-delete" onClick={()=>deleteRoom(r.id)}>Xóa phòng</button>
                 </div>
-                <div className="admin-room-photo-list">
-                  {(r.images||[]).map((image,index)=><div className={`admin-room-photo ${index===0?'is-cover':''}`} key={image+index}>
-                    <img src={assetUrl(image)} alt={'Ảnh phòng '+(index+1)} loading="lazy" />
-                    {index===0 && <span className="admin-room-cover-badge">TRANG CHỦ</span>}
-                    <button type="button" className="admin-room-photo-delete" onClick={()=>deleteRoomImage(r,index)} aria-label={'Xóa ảnh '+(index+1)}>×</button>
-                  </div>)}
-                  <label className="admin-room-add-photo"><span>+</span><b>Thêm ảnh</b><input type="file" multiple accept="image/*" onChange={e=>{uploadImages(r.id,e.target.files);e.target.value='';}} /></label>
-                  <small className="admin-room-photo-count">{(r.images||[]).length ? `${(r.images||[]).length} ảnh` : 'Chưa có ảnh'}</small>
-                </div>
-              </div>
-            ))}
-            {!rooms.length && <div className="empty">Chưa có phòng nào.</div>}
+                {isExpanded&&<div className="admin-room-card-body">
+                  <div className="admin-room-detail-top"><div><small>MÔ TẢ PHÒNG</small><p>{r.description||'Chưa có mô tả.'}</p><b>Sức chứa: tối đa {r.capacity||'—'} khách</b></div><div className="admin-room-price"><small>GIÁ / ĐÊM</small>{editingRoomPrice?.id===r.id?<><input aria-label="Giá phòng mỗi đêm" type="text" lang="en" dir="ltr" inputMode="numeric" value={priceFieldFocused?editingRoomPrice.value:formatPriceInput(editingRoomPrice.value)} onFocus={e=>{const input=e.currentTarget;setPriceFieldFocused(true);requestAnimationFrame(()=>input.select());}} onBlur={()=>setPriceFieldFocused(false)} onChange={e=>setEditingRoomPrice(current=>current?{...current,value:e.target.value.replace(/\D/g,'')}:current)}/><div className="admin-room-price-actions"><button type="button" className="btn dark" onClick={async()=>{const saved=await updateTypePrice({id:r.room_type_id,base_price:r.base_price},editingRoomPrice.value);if(saved)setEditingRoomPrice(null);}}>Lưu</button><button type="button" className="btn ghost" onClick={()=>setEditingRoomPrice(null)}>Hủy</button></div></>:<><b>{money(r.base_price||0)}</b><button type="button" className="btn ghost" onClick={()=>{setPriceFieldFocused(false);setEditingRoomPrice({id:r.id,value:String(Number(r.base_price||0))});}}>Sửa giá</button></>}</div></div>
+                  <div className="admin-room-photo-section"><small>ẢNH PHÒNG</small><div className="admin-room-photo-list">{(r.images||[]).map((image,index)=><div className={`admin-room-photo ${index===0?'is-cover':''}`} key={image+index}><img src={assetUrl(image)} alt={'Ảnh phòng '+(index+1)} loading="lazy" />{index===0&&<span className="admin-room-cover-badge">TRANG CHỦ</span>}<button type="button" className="admin-room-photo-delete" onClick={()=>deleteRoomImage(r,index)} aria-label={'Xóa ảnh '+(index+1)}>×</button></div>)}<label className="admin-room-add-photo"><span>+</span><b>Thêm ảnh</b><input type="file" multiple accept="image/*" onChange={e=>{uploadImages(r.id,e.target.files);e.target.value='';}} /></label><small className="admin-room-photo-count">{(r.images||[]).length} ảnh</small></div></div>
+                </div>}
+              </article>;
+            })}
+            {!rooms.length&&<div className="empty">Chưa có phòng nào.</div>}
           </div>
         </>
       )}

@@ -18,17 +18,29 @@ export const router=Router();
 const uploadsDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../uploads');
 fs.mkdirSync(uploadsDir,{recursive:true});
 const upload=multer({dest:uploadsDir,limits:{fileSize:5*1024*1024}});
+const maskIdCard=(number)=>{
+  const value=String(number||'');
+  return value.length>4?`${'*'.repeat(value.length-4)}${value.slice(-4)}`:(value?'*'.repeat(value.length):null);
+};
+const hideBookingIdCard=(booking)=>{
+  if(!booking) return booking;
+  const {id_card_number,...safeBooking}=booking;
+  return {...safeBooking,id_card_number:maskIdCard(id_card_number)};
+};
 
 // Tên loại phòng hiển thị luôn bằng tiếng Việt; tên trong DB có thể giữ nguyên để không phá dữ liệu cũ.
 const roomTypeLabel=(name,description='')=>{
   const n=`${name||''} ${description||''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const countBeds=value=>[...String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').matchAll(/(\d+)\s*giuong\b/g)].reduce((total,match)=>total+Number(match[1]),0);
-  const bedCount=countBeds(name)||countBeds(description);
-  if(/phong nhom|group|tap the|dorm/.test(n)) return bedCount?`Phòng nhóm · ${bedCount} giường`:'Phòng nhóm';
-  if(/family|gia dinh/.test(n)) return `Phòng gia đình · ${bedCount||1} giường${bedCount===1?' lớn':''}`;
-  if(/cao cap|premium|suite|deluxe/.test(n)) return `Phòng cao cấp · ${bedCount||1} giường`;
-  if(/standard|phong thuong|single|phong don/.test(n)) return `Phòng thường · ${bedCount||1} giường`;
-  if(/twin|double|phong doi/.test(n)) return `Phòng đôi · ${bedCount||2} giường`;
+  if(/(?:5|five)\s*(?:giuong|bed)|tap the|dorm/.test(n)) return 'Phòng tập thể 5 giường';
+  if(/family|gia dinh/.test(n)) return 'Phòng gia đình · 1 giường lớn';
+  if(/cao cap|premium|suite|deluxe/.test(n)) {
+    if(/(?:2|two|twin|double)\s*(?:giuong|bed)|giuong doi|sofa rieng|suite/.test(n)) return 'Phòng cao cấp · 2 giường';
+    return 'Phòng cao cấp · 1 giường';
+  }
+  if(/(?:2|two)\s*(?:giuong|bed)|twin|double|phong doi/.test(n)) return 'Phòng thường · 2 giường';
+  if(/standard|phong thuong|single|phong don/.test(n)) return 'Phòng thường · 1 giường';
+  if(/twin|double|phong doi|2\s*(?:giuong|bed)/.test(n)) return 'Phòng đôi · 2 giường';
+  if(/single|1\s*(?:giuong|bed)|phong don/.test(n)) return 'Phòng thường · 1 giường';
   return name||'Phòng';
 };
 
@@ -122,6 +134,8 @@ router.get('/availability/calendar',async(req,res,next)=>{
 
 
 // Trợ lý LUXORA: AI chỉ gọi các công cụ đọc dữ liệu được backend cho phép theo vai trò.
+router.get('/chatbot/status',(_req,res)=>res.json({aiEnabled:Boolean(process.env.OPENAI_API_KEY)}));
+
 router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
   try{
     const message=String(req.body?.message||'').trim();
@@ -251,6 +265,8 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     const currentMessageHasDates=/\b(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}|\d{4}-\d{1,2}-\d{1,2})\b/.test(message);
     const isDateFollowUp=assistantAskedForDates||(priorUserAskedForRooms&&currentMessageHasDates);
     const queryMessage=isDateFollowUp&&priorUser?`${priorUser.content} ${message}`:message;
+    const normalizedQuery=queryMessage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const guestCountIntent=normalizedQuery.match(/\b(\d{1,2})\s*(?:nguoi|khach)\b/);
     const dateTokens=[...queryMessage.matchAll(/\b(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}|\d{4}-\d{1,2}-\d{1,2})\b/g)].map(m=>parseChatDate(m[0])).filter(Boolean);
     const guestMatch=queryMessage.match(/(\d{1,2})\s*(?:người|khách)/i);
     const userMessages=[...history.filter(item=>item.role==='user').map(item=>item.content||''),message];
@@ -260,35 +276,25 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     const contextualGuestMatch=guestMatch||[...userMessages].reverse().map(value=>value.match(/(\d{1,2})\s*(?:người|khách)/i)).find(Boolean)||null;
     const normalizedQuestion=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
     const asksAvailability=/ph[oò]ng|c[oò]n tr[oố]ng|đặt ph[oò]ng|s[oố] ph[oò]ng/i.test(queryMessage);
+    if(/dat phong/.test(normalizedQuery)&&/\bngay\b/.test(normalizedQuery)&&dateTokens.length<2){
+      return res.json({answer:'Mình cần đủ ngày nhận phòng, ngày trả phòng và số khách để kiểm tra chính xác. Ngày 22 là ngày/tháng/năm nào, bạn dự định trả phòng ngày nào và có bao nhiêu khách?',suggestions:[],aiEnabled:false});
+    }
     const roomRequests=[...queryMessage.matchAll(/(\d{1,2})\s*ph[oò]ng\s*(\d{1,2})\s*(?:người|khách)/gi)]
       .flatMap(match=>Array.from({length:Math.min(Number(match[1]),10)},()=>Number(match[2])))
       .filter(count=>count>=1&&count<=20);
-    const roomTypes=(await pool.query(`SELECT id,name,description,capacity,base_price FROM room_types ORDER BY base_price,name`)).rows;
-    const roomTypeLabels=roomTypes.map(type=>({type,label:roomTypeLabel(type.name,type.description),title:roomTypeLabel(type.name,type.description).split(' · ')[0]}));
-    const normalizeName=value=>String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-    const exactRoomTypes=roomTypeLabels.filter(({type,label})=>[type.name,label].some(alias=>normalizeName(alias).length>3&&normalizedQuestion.includes(normalizeName(alias))));
-    const namedRoomTypes=exactRoomTypes.length?exactRoomTypes:roomTypeLabels.filter(({title})=>normalizeName(title).length>5&&normalizedQuestion.includes(normalizeName(title)));
-    const asksRoomPrice=/gia|tong|tien|bao nhieu|chi phi|dat phong/.test(normalizedQuestion);
-    const requestedGuests=Number(contextualGuestMatch?.[1]||0);
-    const sameCapacityRoomTypes=namedRoomTypes.filter(item=>Number(item.type.capacity)===requestedGuests);
-    const quoteRoomTypes=requestedGuests&&sameCapacityRoomTypes.length?sameCapacityRoomTypes:namedRoomTypes;
-    if((role==='GUEST'||role==='CUSTOMER')&&quoteRoomTypes.length&&(asksRoomPrice||asksAvailability)){
-      if(quoteRoomTypes.length>1) return res.json({answer:'Mình thấy có nhiều hạng phòng cùng nhóm tên này. Bạn cho mình biết số giường hoặc tên loại phòng cụ thể để mình tính đúng nhé?',suggestions:[],aiEnabled:false});
-      const selectedType=quoteRoomTypes[0].type;
-      const selectedLabel=quoteRoomTypes[0].label;
-      const guests=requestedGuests;
-      if(!guests) return res.json({answer:`Bạn muốn đặt ${selectedLabel}. Bạn cho mình biết số khách nhé?`,suggestions:[],aiEnabled:false});
-      if(dateTokens.length<2) return res.json({answer:`Mình đã ghi nhận ${guests} khách và loại ${selectedLabel}. Bạn cho mình ngày nhận phòng và ngày trả phòng để kiểm tra tình trạng cùng tổng giá chính xác nhé.`,suggestions:[],aiEnabled:false});
-      const [checkIn,checkOut]=dateTokens.slice(-2);
-      if(!validDate(checkIn)||!validDate(checkOut)||checkOut<=checkIn) return res.json({answer:'Ngày nhận/trả phòng chưa hợp lệ. Bạn gửi lại ngày nhận và ngày trả phòng nhé.',suggestions:[],aiEnabled:false});
-      const quote=await executeTool('search_room_availability',{check_in:checkIn,check_out:checkOut,guests,room_type:selectedType.name,max_total:null});
-      if(quote.error) return res.json({answer:quote.error,suggestions:[],aiEnabled:false});
-      const result=quote.rooms?.find(room=>room.name===selectedLabel);
-      if(!result) return res.json({answer:`Mình chưa tìm thấy ${selectedLabel} còn trống, đúng sức chứa ${guests} khách, từ ${checkIn} đến ${checkOut}. Bạn muốn mình kiểm tra loại phòng khác không?`,suggestions:[],aiEnabled:false});
-      const nightly=result.nightlyRates.map(rate=>`${rate.date}: ${Number(rate.price).toLocaleString('vi-VN')} ₫`).join('; ');
-      return res.json({answer:`Mình đã kiểm tra đúng loại ${result.name} cho ${guests} khách từ ${checkIn} đến ${checkOut} (${result.nights} đêm). Hiện còn ${result.availableCount} phòng phù hợp. Tổng tiền phòng là ${Number(result.totalPrice).toLocaleString('vi-VN')} ₫ (${nightly}). Giá chưa gồm dịch vụ phát sinh và phòng chưa được giữ chỗ.`,suggestions:[],aiEnabled:false});
+    if(guestCountIntent&&/(?:chon phong|lua chon phong|phu hop|tu van phong|goi y phong|nen chon phong)/.test(normalizedQuery)){
+      const guests=Number(guestCountIntent[1]);
+      const matchingTypes=(await pool.query(`SELECT rt.name,rt.description,rt.capacity,rt.base_price,rt.amenities,COUNT(r.id)::int room_count
+        FROM room_types rt JOIN rooms r ON r.room_type_id=rt.id
+        WHERE rt.capacity >= $1 AND r.status <> 'MAINTENANCE'
+        GROUP BY rt.id ORDER BY rt.capacity,rt.base_price,rt.name`,[guests])).rows;
+      const suggestions=matchingTypes.map(room=>({name:room.name,description:room.description||'',capacity:Number(room.capacity),price:Number(room.base_price),roomCount:Number(room.room_count),amenities:room.amenities||[]}));
+      const answer=matchingTypes.length
+        ? `Với ${guests} khách, xét theo sức chứa thì các loại phòng dưới đây phù hợp. Bạn gửi thêm ngày nhận và ngày trả để mình kiểm tra phòng còn trống và tổng giá cho thời gian ở nhé.`
+        : `Hiện danh sách phòng thực tế chưa có loại phòng nào đủ sức chứa ${guests} khách. Bạn có thể hỏi lễ tân về phương án đặt nhiều phòng.`;
+      return res.json({answer,suggestions,aiEnabled:false});
     }
-    if(asksAvailability&&!dateTokens.length&&(roomRequests.length||/ph[oò]ng.*(?:tr[oố]ng|đặt)|(?:tr[oố]ng|đặt).*ph[oò]ng/i.test(queryMessage))){
+    if(asksAvailability&&!dateTokens.length&&(roomRequests.length||/(?:con phong|phong trong|phong nao con|tim phong|kiem tra phong|phong.*con trong|con trong.*phong)/i.test(queryMessage.normalize('NFD').replace(/[\u0300-\u036f]/g,'')))){
       const roomText=roomRequests.length?` cho ${roomRequests.length} phòng (${roomRequests.map((count,index)=>`phòng ${index+1}: ${count} khách`).join(', ')})`:'';
       return res.json({answer:`Mình có thể kiểm tra tình trạng${roomText}. Bạn cho mình ngày nhận phòng và ngày trả phòng nhé?`,suggestions:[],aiEnabled:false});
     }
@@ -334,6 +340,25 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
       const roomLines=availability.rooms.map(room=>`• ${room.name}: còn ${room.availableCount} phòng phù hợp, tối đa ${room.capacity} khách; tổng ${Number(room.totalPrice).toLocaleString('vi-VN')} ₫ cho ${room.nights} đêm`).join('\n');
       return res.json({answer:`Mình đã tra cứu từ ${checkIn} đến ${checkOut} cho ${guests} khách. Các loại phòng còn trống theo dữ liệu hiện tại:\n${roomLines}\n\nKết quả chưa giữ phòng; tình trạng có thể thay đổi trước khi hoàn tất đặt phòng.`,suggestions:[],aiEnabled:false});
     }
+    // Câu hỏi danh mục loại phòng cần lấy trực tiếp từ CSDL, không phụ thuộc tài liệu
+    // huấn luyện hoặc OpenAI API key. Tránh hiểu nhầm "phòng nào" thành hỏi phòng trống.
+    const roomQuestion=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const asksRoomCatalog=/(loai phong|cac phong|nhung phong nao|co nhung phong|phong gom nhung loai|danh sach phong)/.test(roomQuestion);
+    const asksAvailabilityQuestion=/(con phong|phong trong|phong nao con|phong nao trong|dat phong|ngay nhan|ngay tra|tu ngay|check.?in)/.test(roomQuestion);
+    if(asksRoomCatalog&&!asksAvailabilityQuestion){
+      const roomTypes=(await pool.query(`SELECT rt.name,rt.description,rt.capacity,rt.base_price,rt.amenities,COUNT(r.id)::int room_count
+        FROM room_types rt JOIN rooms r ON r.room_type_id=rt.id
+        GROUP BY rt.id ORDER BY rt.base_price,rt.name`)).rows;
+      const suggestions=roomTypes.map(room=>({name:room.name,description:room.description||'',capacity:Number(room.capacity),price:Number(room.base_price),roomCount:Number(room.room_count),amenities:room.amenities||[]}));
+      const totalRooms=roomTypes.reduce((sum,room)=>sum+Number(room.room_count),0);
+      const answer=roomTypes.length
+        ? `LUXORA hiện có ${totalRooms} phòng thuộc ${roomTypes.length} loại phòng. Mình gửi thông tin sức chứa, giá cơ bản và mô tả các loại phòng đang có bên dưới nhé.`
+        : 'Hiện hệ thống chưa có loại phòng nào được khai báo. Bạn vui lòng liên hệ lễ tân để được hỗ trợ.';
+      return res.json({answer,suggestions,aiEnabled:false});
+    }
+    if(/(?:cach|lam sao|the nao).*(?:them|dang ky).*(?:dich vu)|(?:them|dang ky).*(?:dich vu).*(?:vao phong|vao booking|vao hoa don)/.test(normalizedQuery)){
+      return res.json({answer:'Khi đặt phòng, bạn có thể chọn dịch vụ trong mục “Chọn dịch vụ cho kỳ lưu trú”; dịch vụ sẽ được ghi nhận vào hóa đơn khi lễ tân làm thủ tục nhận phòng. Nếu khách đã có booking, lễ tân mở mục Hóa đơn, tìm booking rồi chọn dịch vụ ở phần “Dịch vụ có thể thêm”.',suggestions:[],aiEnabled:false});
+    }
     if(process.env.OPENAI_API_KEY){
       try{
         const result=await askOpenAI({message,history,role,knowledge:relevantKnowledge(message,role,history),tools:toolSpecs,runTool:executeTool});
@@ -350,21 +375,18 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     }
     const nums=[...q.matchAll(/\b(\d{1,2})\s*(?:nguoi|khach)\b/g)].map(m=>Number(m[1]));
     const guestCount=nums[0]||null;
-    if(/danh sach dich vu|co nhung dich vu|co dich vu gi|dich vu nao|gia dich vu|cac dich vu|dich vu.*(gi|nao|xem|danh sach|gia|loai)/.test(q)){
-      const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
-      return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({...serviceForDisplay(s),price:Number(s.price)})),aiEnabled:false});
-    }
-    if(/nhan phong|tra phong|check.?in|check.?out/.test(q)) return res.json({answer:'LUXORA nhận phòng từ 14:00 và trả phòng tối đa lúc 12:00.',suggestions:[],aiEnabled:false});
-    const knowledgeAnswer=answerFromKnowledge(message,role,history);
-    if(knowledgeAnswer) return res.json({answer:knowledgeAnswer,suggestions:[],aiEnabled:false});
-    if(/dich vu|giat|an sang|spa/.test(q)){
-      const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
-      return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({...serviceForDisplay(s),price:Number(s.price)})),aiEnabled:false});
-    }
+    const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
     const rooms=(await pool.query(`SELECT rt.id,rt.name,rt.capacity,rt.base_price,rt.description,rt.amenities FROM room_types rt ORDER BY rt.base_price`)).rows;
-    const candidates=rooms.filter(r=>!guestCount||Number(r.capacity)===guestCount);
-    if(/phong|gia|nguoi|khach|suc chua/.test(q)) return res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể kết nối trợ lý AI lúc này. Vui lòng thử lại sau.':(guestCount?`Với ${guestCount} khách, đây là các loại phòng đủ sức chứa theo dữ liệu hiện có:`:'Đây là các loại phòng và giá cơ bản hiện có:') ,suggestions:candidates.slice(0,8).map(r=>({name:roomTypeLabel(r.name,r.description),capacity:Number(r.capacity),price:Number(r.base_price),description:r.description||'',amenities:r.amenities||[]})),aiEnabled:false});
-    res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể trả lời chính xác câu hỏi này lúc này. Bạn có thể hỏi về phòng, dịch vụ, giá cơ bản hoặc giờ nhận/trả phòng; nếu cần hỗ trợ đặt phòng, vui lòng liên hệ lễ tân.':'Mình chưa có đủ thông tin để trả lời chính xác câu hỏi này. Hiện mình có thể hỗ trợ thông tin chung về phòng, dịch vụ và giờ nhận/trả phòng. Với yêu cầu đặt phòng cụ thể, bạn vui lòng gửi ngày lưu trú và số khách hoặc liên hệ lễ tân.',suggestions:[],aiEnabled:false});
+    if(/dich vu|giat|an sang|spa/.test(q)) return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({name:s.name,description:s.description||'',price:Number(s.price)})),aiEnabled:false});
+    if(/dat phong|lam sao dat|cach dat|quy trinh dat/.test(q)) return res.json({answer:'Bạn chọn ngày nhận phòng, ngày trả phòng và số khách ở phần tìm phòng; chọn phòng phù hợp, đăng nhập hoặc tạo tài khoản rồi làm theo các bước xác nhận trên màn hình. Nếu muốn mình kiểm tra phòng, hãy gửi ngày nhận, ngày trả và số khách.',suggestions:[],aiEnabled:false});
+    if(/hoa don|xem booking|booking cua toi|phong cua toi/.test(q)) return res.json({answer:'Bạn đăng nhập bằng tài khoản đã đặt phòng, rồi mở mục Phòng của tôi hoặc Hóa đơn để xem booking và các khoản thanh toán.',suggestions:[],aiEnabled:false});
+    if(/thanh toan|chuyen khoan|tien coc|dat coc/.test(q)) return res.json({answer:'Khoản chuyển khoản cần được nhân viên xác minh trên hệ thống trước khi booking được xác nhận. Bạn có thể xem trạng thái trong tài khoản; nếu chưa cập nhật, vui lòng liên hệ lễ tân và cung cấp mã booking.',suggestions:[],aiEnabled:false});
+    if(/hoan tien|huy phong|huy booking/.test(q)) return res.json({answer:'Bạn mở booking trong tài khoản và gửi yêu cầu hủy/hoàn tiền nếu hệ thống có tùy chọn. Nhân viên có thẩm quyền sẽ xem xét; chatbot chưa thể xác nhận điều kiện hay thời gian hoàn tiền nếu chưa có chính sách chính thức.',suggestions:[],aiEnabled:false});
+    if(/quen mat khau|dat lai mat khau/.test(q)) return res.json({answer:'Ở màn hình đăng nhập, chọn Quên mật khẩu và làm theo hướng dẫn gửi tới email đăng ký. Không chia sẻ liên kết đặt lại mật khẩu với người khác.',suggestions:[],aiEnabled:false});
+    if(/nhan phong|tra phong|check.?in|check.?out/.test(q)) return res.json({answer:'LUXORA nhận phòng từ 14:00 và trả phòng tối đa lúc 12:00.',suggestions:[],aiEnabled:false});
+    const candidates=rooms.filter(r=>!guestCount||Number(r.capacity)>=guestCount);
+    if(/phong|gia|nguoi|khach|suc chua/.test(q)) return res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể kết nối trợ lý AI lúc này. Vui lòng thử lại sau.':(guestCount?`Với ${guestCount} khách, đây là các loại phòng đủ sức chứa theo dữ liệu hiện có:`:'Đây là các loại phòng và giá cơ bản hiện có:') ,suggestions:candidates.slice(0,8).map(r=>({name:r.name,capacity:Number(r.capacity),price:Number(r.base_price),description:r.description||'',amenities:r.amenities||[]})),aiEnabled:false});
+    res.json({answer:'Mình là trợ lý tư vấn tạm thời của LUXORA. Mình có thể hỗ trợ thông tin phòng, sức chứa, giá cơ bản, dịch vụ, giờ nhận/trả phòng và hướng dẫn đặt phòng. Nếu câu hỏi cần chính sách riêng hoặc cần nhân viên kiểm tra, bạn vui lòng liên hệ lễ tân: 0379 887 282 hoặc kienduon757@gmail.com.',suggestions:[],aiEnabled:false});
   }catch(e){next(e)}
 });
 
@@ -592,9 +614,11 @@ router.get('/rooms',async(req,res,next)=>{
       if(Number.isNaN(inDate.getTime())||Number.isNaN(outDate.getTime())||inDate>=outDate) return res.status(400).json({message:'Khoảng thời gian tìm phòng không hợp lệ'});
       params.push(checkIn,checkOut);
       where.push(`r.id NOT IN (SELECT room_id FROM bookings WHERE status NOT IN ('CANCELLED','COMPLETED') AND check_in < $${params.length} AND check_out > $${params.length-1})`);
+      where.push(`r.status <> 'MAINTENANCE'`);
+      where.push(`(($${params.length-1}::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh')::date > (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date OR r.status NOT IN ('OCCUPIED','CLEANING'))`);
     }
     const whereSql=where.length?`AND ${where.join(' AND ')}`:'';
-    const r=await pool.query(`SELECT r.*,rt.name room_type_name,rt.description,rt.capacity,rt.base_price,rt.amenities,
+    const r=await pool.query(`SELECT r.*,rt.name room_type_name,rt.category room_type_category,rt.double_beds,rt.single_beds,rt.description,rt.capacity,rt.base_price,rt.amenities,
       COALESCE((SELECT json_agg(json_build_object('checkIn',bb.check_in,'checkOut',bb.check_out) ORDER BY bb.check_in)
         FROM bookings bb WHERE bb.room_id=r.id AND bb.status NOT IN ('CANCELLED','COMPLETED') AND bb.check_out>NOW()),'[]'::json) AS upcoming_bookings
       FROM rooms r JOIN room_types rt ON rt.id=r.room_type_id WHERE 1=1 ${whereSql} ORDER BY r.room_number`,params);
@@ -682,7 +706,10 @@ router.post('/bookings',auth,async(req,res,next)=>{
   const c=await pool.connect();
   try{
     const {roomId,checkIn,checkOut,depositAmount=0,discountCode,guests=1,paymentMethod='BANK_TRANSFER',customerPhone,services:requestedServices=[]}=req.body;
-    const customer=(await c.query(`SELECT phone FROM users WHERE id=$1`,[req.user.sub])).rows[0];
+    const customer=(await c.query(`SELECT phone,id_card_number,id_card_issue_date FROM users WHERE id=$1`,[req.user.sub])).rows[0];
+    const normalizedIdCard=String(customer?.id_card_number||'').trim();
+    const idCardIssueDate=customer?.id_card_issue_date;
+    if(!/^\d{12}$/.test(normalizedIdCard)||!idCardIssueDate) return res.status(400).json({message:'Vui lòng cập nhật số CCCD và ngày cấp trong Hồ sơ trước khi đặt phòng'});
     const normalizedPhone=String(customerPhone||customer?.phone||'').trim();
     if(!normalizedPhone) return res.status(400).json({message:'Vui lòng nhập số điện thoại để hoàn tất đặt phòng'});
     if(!/^(?:\+84|0)\d{8,10}$/.test(normalizedPhone.replace(/[ .-]/g,''))) return res.status(400).json({message:'Số điện thoại không hợp lệ'});
@@ -735,9 +762,9 @@ router.post('/bookings',auth,async(req,res,next)=>{
     if(!['CASH','BANK_TRANSFER'].includes(paymentMethod)) {await c.query('ROLLBACK');return res.status(400).json({message:'Phương thức thanh toán tiền cọc không hợp lệ'})}
     const code=bookingCode(),raw=randomToken();
     const paymentExpiresAt=deposit>0?new Date(Date.now()+15*60*1000):null;
-    const b=(await c.query(`INSERT INTO bookings(booking_code,customer_id,room_id,check_in,check_out,room_price,deposit_amount,guest_count,customer_phone,status,qr_token_hash,discount_code,discount_amount,payment_expires_at)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [code,req.user.sub,roomId,checkIn,checkOut,finalPrice,deposit,guestCount,normalizedPhone,deposit>0?'PENDING_PAYMENT':'CONFIRMED',sha256(raw),appliedCode,discountAmount,paymentExpiresAt])).rows[0];
+    const b=(await c.query(`INSERT INTO bookings(booking_code,customer_id,room_id,check_in,check_out,room_price,deposit_amount,guest_count,customer_phone,id_card_number,id_card_issue_date,status,qr_token_hash,discount_code,discount_amount,payment_expires_at)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING *`,
+      [code,req.user.sub,roomId,checkIn,checkOut,finalPrice,deposit,guestCount,normalizedPhone,normalizedIdCard,idCardIssueDate,deposit>0?'PENDING_PAYMENT':'CONFIRMED',sha256(raw),appliedCode,discountAmount,paymentExpiresAt])).rows[0];
     const reservedServices=[];
     for(const item of requestedServices){
       const service=(await c.query(`SELECT id,name,price FROM services WHERE id=$1 AND is_active=true`,[item.serviceId])).rows[0];
@@ -752,7 +779,7 @@ router.post('/bookings',auth,async(req,res,next)=>{
     await log(req.user.sub,'BOOKING_CREATED','BOOKING',b.id,{bookingCode:code,nights,guestCount,baseTotal,discountCode:appliedCode,discountAmount,paymentMethod,reservedServices:reservedServices.length});
     await c.query('COMMIT');
     const qr=await QRCode.toDataURL(JSON.stringify({bookingCode:code,token:raw}));
-    res.status(201).json({booking:b,services:reservedServices,qrDataUrl:qr,pricing:{nights,nightlyRate:Number(room.base_price),baseTotal,discountAmount,finalPrice,deposit,remaining:Math.max(0,finalPrice-deposit),guestCount,nightlyRates:roomPricing.nightlyRates,paymentExpiresAt:b.payment_expires_at}});
+    res.status(201).json({booking:req.user.role==='CUSTOMER'?b:hideBookingIdCard(b),services:reservedServices,qrDataUrl:qr,pricing:{nights,nightlyRate:Number(room.base_price),baseTotal,discountAmount,finalPrice,deposit,remaining:Math.max(0,finalPrice-deposit),guestCount,nightlyRates:roomPricing.nightlyRates,paymentExpiresAt:b.payment_expires_at}});
   }catch(e){await c.query('ROLLBACK');next(e)}finally{c.release()}
 });
 
@@ -761,7 +788,7 @@ router.get('/bookings/mine',auth,async(req,res,next)=>{
     const r=await pool.query(`SELECT b.*,r.room_number,rt.name room_type_name
       FROM bookings b JOIN rooms r ON r.id=b.room_id JOIN room_types rt ON rt.id=r.room_type_id
       WHERE b.customer_id=$1 ORDER BY b.created_at DESC`,[req.user.sub]);
-    res.json(r.rows)
+    res.json(req.user.role==='CUSTOMER'?r.rows:r.rows.map(hideBookingIdCard))
   }catch(e){next(e)}
 });
 
@@ -779,17 +806,25 @@ router.post('/bookings/:code/cancel',auth,async(req,res,next)=>{
     if(!isOwner&&!isStaff){await c.query('ROLLBACK');return res.status(403).json({message:'Bạn không có quyền hủy booking này'})}
     if(!['PENDING_PAYMENT','CONFIRMED'].includes(b.status)){await c.query('ROLLBACK');return res.status(400).json({message:'Booking này không còn ở trạng thái có thể hủy'})}
     if(new Date(b.check_in)<=new Date()&&!isStaff){await c.query('ROLLBACK');return res.status(400).json({message:'Đã quá giờ nhận phòng, vui lòng liên hệ lễ tân để hủy'})}
-    const updated=(await c.query(`UPDATE bookings SET status='CANCELLED',cancellation_reason=$1 WHERE id=$2 RETURNING *`,[reason||'Khách hủy booking',b.id])).rows[0];
-    if(Number(b.deposit_amount)>0){
-      const paid=await c.query(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE booking_id=$1 AND type='DEPOSIT' AND status='SUCCESS'`,[b.id]);
-      if(Number(paid.rows[0].total)>0){
+    const paid=await c.query(`SELECT COALESCE(SUM(amount),0) total,MIN(COALESCE(paid_at,created_at)) paid_at FROM payments WHERE booking_id=$1 AND type='DEPOSIT' AND status='SUCCESS'`,[b.id]);
+    const depositPaid=Number(paid.rows[0].total)>0;
+    let refundEligible=false;
+    if(depositPaid){
+      const depositPaidAt=new Date(paid.rows[0].paid_at);
+      const checkInAt=new Date(b.check_in);
+      const hoursUntilCheckIn=(checkInAt-depositPaidAt)/(60*60*1000);
+      const cancellationWindowHours=hoursUntilCheckIn<=24?12:24;
+      const cancellationDeadline=new Date(Math.min(depositPaidAt.getTime()+cancellationWindowHours*60*60*1000,checkInAt.getTime()));
+      refundEligible=Date.now()<=cancellationDeadline.getTime();
+      if(refundEligible){
         await c.query(`INSERT INTO payments(booking_id,transaction_code,amount,type,status,provider) VALUES($1,$2,$3,'REFUND','PENDING','MANUAL')`,
           [b.id,`REFUND-${b.booking_code}-${Date.now()}`,paid.rows[0].total]);
       }
     }
+    const updated=(await c.query(`UPDATE bookings SET status='CANCELLED',cancellation_reason=$1 WHERE id=$2 RETURNING *`,[reason||'Khách hủy booking',b.id])).rows[0];
     await log(req.user.sub,'BOOKING_CANCELLED','BOOKING',b.id,{reason});
     await c.query('COMMIT');
-    res.json(updated);
+    res.json({...(req.user.role==='CUSTOMER'?updated:hideBookingIdCard(updated)),depositPaid,refundEligible});
     await notifyRoles(['ADMIN','MANAGER'],'Booking bị hủy',`Booking ${b.booking_code} đã bị hủy${Number(b.deposit_amount)>0?' — có khoản cọc cần xem xét hoàn tiền':''}.`,'/admin');
   }catch(e){await c.query('ROLLBACK');next(e)}finally{c.release()}
 });
@@ -799,9 +834,18 @@ router.patch('/account/profile',auth,async(req,res,next)=>{
   try{
     const {fullName,phone,address}=req.body;
     if(!fullName||!fullName.trim()) return res.status(400).json({message:'Họ tên không được để trống'});
-    const r=await pool.query(`UPDATE users SET full_name=$1,phone=$2,address=$3 WHERE id=$4
-      RETURNING id,full_name,email,phone,address,role,is_active,id_card_number,id_card_front_url,id_card_back_url,kyc_status,kyc_note,created_at`,
-      [fullName.trim(),phone||null,address||null,req.user.sub]);
+    const isCustomer=req.user.role==='CUSTOMER';
+    const idCardNumber=isCustomer?String(req.body.idCardNumber||'').trim():null;
+    const idCardIssueDate=isCustomer?String(req.body.idCardIssueDate||'').trim():'';
+    if(isCustomer&&((idCardNumber||idCardIssueDate)&&(!/^\d{12}$/.test(idCardNumber)||!/^\d{4}-\d{2}-\d{2}$/.test(idCardIssueDate)||Number.isNaN(Date.parse(`${idCardIssueDate}T00:00:00Z`))||new Date(`${idCardIssueDate}T00:00:00Z`)>new Date()))) return res.status(400).json({message:'Vui lòng nhập CCCD gồm 12 chữ số và ngày cấp hợp lệ; có thể xóa cả hai trường nếu không muốn lưu'});
+    const r=await pool.query(`UPDATE users SET full_name=$1,phone=$2,address=$3,
+      id_card_number=CASE WHEN $4 THEN NULLIF($5,'') ELSE id_card_number END,
+      id_card_issue_date=CASE WHEN $4 THEN NULLIF($6,'')::date ELSE id_card_issue_date END
+      WHERE id=$7
+      RETURNING id,full_name,email,phone,address,role,is_active,
+        CASE WHEN role='CUSTOMER' THEN id_card_number ELSE NULL END AS id_card_number,
+        CASE WHEN role='CUSTOMER' THEN id_card_issue_date ELSE NULL END AS id_card_issue_date,created_at`,
+      [fullName.trim(),phone||null,address||null,isCustomer,idCardNumber||'',idCardIssueDate,req.user.sub]);
     await log(req.user.sub,'PROFILE_UPDATED','USER',req.user.sub);
     res.json(r.rows[0]);
   }catch(e){next(e)}
@@ -809,7 +853,10 @@ router.patch('/account/profile',auth,async(req,res,next)=>{
 
 router.get('/account/profile',auth,async(req,res,next)=>{
   try{
-    const r=await pool.query(`SELECT id,full_name,email,phone,address,role,is_active,id_card_number,id_card_front_url,id_card_back_url,kyc_status,kyc_note,created_at FROM users WHERE id=$1`,[req.user.sub]);
+    const r=await pool.query(`SELECT id,full_name,email,phone,address,role,is_active,
+      CASE WHEN role='CUSTOMER' THEN id_card_number ELSE NULL END AS id_card_number,
+      CASE WHEN role='CUSTOMER' THEN id_card_issue_date ELSE NULL END AS id_card_issue_date,created_at
+      FROM users WHERE id=$1`,[req.user.sub]);
     if(!r.rowCount) return res.status(404).json({message:'Không tìm thấy tài khoản'});
     res.json(r.rows[0]);
   }catch(e){next(e)}
@@ -854,46 +901,6 @@ router.patch('/bookings/:code/refund-recipient',auth,async(req,res,next)=>{
     if(!r.rowCount) return res.status(409).json({message:'Yêu cầu hoàn tiền vừa được xử lý'});
     await log(req.user.sub,'REFUND_RECIPIENT_UPDATED','PAYMENT',current.id,{method,bankCode:refund.refundBankCode||null});
     res.json({id:r.rows[0].id,amount:Number(r.rows[0].amount),status:r.rows[0].status,refund:r.rows[0].raw_payload||{}});
-  }catch(e){next(e)}
-});
-
-// Khách gửi ảnh CCCD để xác thực danh tính (KYC). Nhân viên sẽ xem và duyệt thủ công —
-// không tự động xác thực OCR (tránh phụ thuộc dịch vụ eKYC trả phí của bên thứ 3).
-router.post('/account/kyc',auth,upload.fields([{name:'idFront',maxCount:1},{name:'idBack',maxCount:1}]),async(req,res,next)=>{
-  try{
-    const {idCardNumber}=req.body;
-    if(!idCardNumber||!/^\d{9,12}$/.test(idCardNumber)) return res.status(400).json({message:'Số CCCD/CMND không hợp lệ'});
-    const front=req.files?.idFront?.[0], back=req.files?.idBack?.[0];
-    if(!front||!back) return res.status(400).json({message:'Vui lòng tải lên đủ ảnh mặt trước và mặt sau CCCD'});
-    const r=await pool.query(`UPDATE users SET id_card_number=$1,id_card_front_url=$2,id_card_back_url=$3,kyc_status='PENDING',kyc_note=NULL
-      WHERE id=$4 RETURNING id,full_name,email,id_card_number,id_card_front_url,id_card_back_url,kyc_status`,
-      [idCardNumber,`/uploads/${front.filename}`,`/uploads/${back.filename}`,req.user.sub]);
-    await log(req.user.sub,'KYC_SUBMITTED','USER',req.user.sub);
-    await notifyRoles(['ADMIN','MANAGER','RECEPTIONIST'],'Có hồ sơ CCCD cần duyệt',`${r.rows[0].full_name} vừa gửi ảnh CCCD để xác thực.`,'/reception');
-    res.status(201).json(r.rows[0]);
-  }catch(e){next(e)}
-});
-
-// Nhân viên lễ tân/quản lý/admin xem và duyệt hồ sơ CCCD đang chờ xác thực.
-router.get('/admin/kyc/pending',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
-  try{
-    const r=await pool.query(`SELECT id,full_name,email,phone,id_card_number,id_card_front_url,id_card_back_url,kyc_status
-      FROM users WHERE kyc_status='PENDING' ORDER BY created_at ASC`);
-    res.json(r.rows);
-  }catch(e){next(e)}
-});
-
-router.post('/admin/kyc/:userId/review',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
-  try{
-    const {status,note}=req.body; // VERIFIED | REJECTED
-    if(!['VERIFIED','REJECTED'].includes(status)) return res.status(400).json({message:'Trạng thái không hợp lệ'});
-    const r=await pool.query(`UPDATE users SET kyc_status=$1,kyc_note=$2 WHERE id=$3 AND kyc_status='PENDING'
-      RETURNING id,full_name,kyc_status,kyc_note`,[status,note||null,req.params.userId]);
-    if(!r.rowCount) return res.status(404).json({message:'Không tìm thấy hồ sơ KYC đang chờ duyệt'});
-    await log(req.user.sub,'KYC_'+status,'USER',req.params.userId,{note});
-    await notify(req.params.userId,status==='VERIFIED'?'CCCD đã được xác thực':'CCCD bị từ chối',
-      status==='VERIFIED'?'Hồ sơ CCCD của bạn đã được xác thực thành công.':`Hồ sơ CCCD bị từ chối${note?': '+note:''}.`,'/account');
-    res.json(r.rows[0]);
   }catch(e){next(e)}
 });
 
@@ -1028,6 +1035,41 @@ router.post('/bookings/:code/payment-method',auth,async(req,res,next)=>{
 // Hóa đơn chi tiết của 1 booking: phòng, dịch vụ đã dùng, các khoản đã thanh toán (cọc/còn lại/hoàn tiền),
 // và tổng kết (nếu đã check-out thì lấy từ bảng invoices, chưa thì tính tạm thời).
 // Danh sách hóa đơn của các booking đang lưu trú; không đưa booking đã trả phòng/hủy vào danh sách.
+router.get('/reception/bookings/overdue-checkin',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
+  try{
+    const rows=await pool.query(`SELECT b.id,b.check_in,b.check_out,r.room_number,u.full_name,
+        (SELECT COALESCE(SUM(p.amount),0) FROM payments p WHERE p.booking_id=b.id AND p.type='DEPOSIT' AND p.status='SUCCESS') paid_deposit
+      FROM bookings b
+      JOIN rooms r ON r.id=b.room_id
+      LEFT JOIN users u ON u.id=b.customer_id
+      WHERE b.status='CONFIRMED' AND b.check_in<=NOW()
+        AND EXISTS (SELECT 1 FROM payments p WHERE p.booking_id=b.id AND p.type='DEPOSIT' AND p.status='SUCCESS')
+      ORDER BY b.check_in,r.room_number`);
+    res.json(rows.rows.map(row=>({...row,paid_deposit:Number(row.paid_deposit)})));
+  }catch(e){next(e)}
+});
+
+router.post('/reception/bookings/:id/no-show',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
+  const c=await pool.connect();
+  try{
+    await c.query('BEGIN');
+    const b=(await c.query(`SELECT b.id,b.status,b.check_in,b.room_id FROM bookings b WHERE b.id=$1 FOR UPDATE`,[req.params.id])).rows[0];
+    if(!b){await c.query('ROLLBACK');return res.status(404).json({message:'Không tìm thấy booking'});}
+    if(b.status!=='CONFIRMED'){await c.query('ROLLBACK');return res.status(409).json({message:'Booking không còn ở trạng thái chờ nhận phòng'});}
+    if(new Date(b.check_in).getTime()+60*60*1000>Date.now()){
+      await c.query('ROLLBACK');
+      return res.status(409).json({message:'Chỉ xác nhận quá hạn sau ít nhất 1 giờ kể từ giờ nhận phòng'});
+    }
+    const paid=await c.query(`SELECT 1 FROM payments WHERE booking_id=$1 AND type='DEPOSIT' AND status='SUCCESS' LIMIT 1`,[b.id]);
+    if(!paid.rowCount){await c.query('ROLLBACK');return res.status(409).json({message:'Chỉ có thể xác nhận quá hạn cho booking đã thanh toán cọc'});}
+    const updated=(await c.query(`UPDATE bookings SET status='CANCELLED',cancellation_reason='Lễ tân xác nhận khách không đến' WHERE id=$1 AND status='CONFIRMED' RETURNING id,status,cancellation_reason`,[b.id])).rows[0];
+    await c.query(`UPDATE rooms SET status='AVAILABLE' WHERE id=$1 AND status='BOOKED'`,[b.room_id]);
+    await log(req.user.sub,'BOOKING_NO_SHOW','BOOKING',b.id,{reason:'Lễ tân xác nhận khách không đến; không hoàn tiền cọc'});
+    await c.query('COMMIT');
+    res.json(updated);
+  }catch(e){await c.query('ROLLBACK');next(e)}finally{c.release()}
+});
+
 router.get('/reception/invoices/active',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
   try{
     const r=await pool.query(`SELECT b.id,b.booking_code,b.check_in,b.check_out,b.actual_check_in,
@@ -1063,7 +1105,7 @@ router.get('/bookings/:code/invoice',auth,async(req,res,next)=>{
     const successfulPayments=payments.filter(x=>x.status==='SUCCESS' && ['DEPOSIT','BALANCE'].includes(x.type));
     totals.remainingTotal=Math.max(0,Number(totals.grandTotal)-successfulPayments.reduce((sum,x)=>sum+Number(x.amount),0));
     totals.depositTotal=successfulPayments.filter(x=>x.type==='DEPOSIT').reduce((sum,x)=>sum+Number(x.amount),0);
-    res.json({booking:b,services,plannedServices,payments,invoice:totals,finalized:!!savedInvoice});
+    res.json({booking:req.user.role==='CUSTOMER'?b:hideBookingIdCard(b),services,plannedServices,payments,invoice:totals,finalized:!!savedInvoice});
   }catch(e){next(e)}
 });
 
@@ -1101,7 +1143,7 @@ router.get('/bookings/:code',auth,async(req,res,next)=>{
     const isStaff=['ADMIN','MANAGER','RECEPTIONIST'].includes(req.user.role);
     if(!isOwner&&!isStaff) return res.status(403).json({message:'Bạn không có quyền xem booking này'});
     const services=await pool.query(`SELECT bs.*,s.name FROM booking_services bs JOIN services s ON s.id=bs.service_id WHERE booking_id=$1`,[r.rows[0].id]);
-    res.json({...r.rows[0],services:services.rows});
+    res.json({...r.rows[0],...(req.user.role==='CUSTOMER'?{}:{id_card_number:maskIdCard(r.rows[0].id_card_number)}),services:services.rows});
   }catch(e){next(e)}
 });
 
@@ -1110,7 +1152,7 @@ router.post('/reception/qr-verify',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),
     const {bookingCode,token}=req.body;
     const b=(await pool.query(`SELECT * FROM bookings WHERE booking_code=$1`,[bookingCode])).rows[0];
     if(!b||sha256(token||'')!==b.qr_token_hash) return res.status(400).json({message:'QR booking không hợp lệ'});
-    res.json({valid:true,booking:b});
+    res.json({valid:true,booking:hideBookingIdCard(b)});
   }catch(e){next(e)}
 });
 
@@ -1125,13 +1167,13 @@ router.post('/reception/check-in',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),a
     const activatedServices=await pool.query(`UPDATE booking_services SET status='PENDING' WHERE booking_id=$1 AND status='RESERVED' RETURNING id,service_id,quantity,unit_price`,[b.id]);
     await pool.query(`UPDATE rooms SET status='OCCUPIED' WHERE id=$1`,[b.room_id]);
     await log(req.user.sub,'CHECK_IN','BOOKING',b.id,{activatedServices:activatedServices.rowCount});
-    res.json({...b,activatedServices:activatedServices.rows});
+    res.json({...hideBookingIdCard(b),activatedServices:activatedServices.rows});
   }catch(e){next(e)}
 });
 
 router.post('/reception/check-out',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
   try{
-    const {bookingCode,surcharge=0,collectPayment=true}=req.body;
+    const {bookingCode,surcharge=0}=req.body;
     const b=(await pool.query(`SELECT * FROM bookings WHERE booking_code=$1 AND status='CHECKED_IN'`,[bookingCode])).rows[0];
     if(!b)return res.status(400).json({message:'Booking chưa check-in'});
     const hotelSettings=(await pool.query(`SELECT time_rules_enabled FROM hotel_settings WHERE id=true`)).rows[0]||{time_rules_enabled:true};
@@ -1140,28 +1182,64 @@ router.post('/reception/check-out',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),
     if(hotelSettings.time_rules_enabled && now>checkoutDeadline) return res.status(400).json({message:'Đã quá giờ trả phòng tối đa 12:00. Vui lòng xử lý trả phòng muộn theo quy định của khách sạn.'});
     const s=(await pool.query(`SELECT COALESCE(SUM(quantity*unit_price) FILTER (WHERE status NOT IN ('CANCELLED','RESERVED')),0) total FROM booking_services WHERE booking_id=$1`,[b.id])).rows[0].total;
     const totals=invoiceTotals({room:b.room_price,services:s,surcharge,deposit:b.deposit_amount});
+    const paidResult=await pool.query(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE booking_id=$1 AND type IN ('DEPOSIT','BALANCE') AND status='SUCCESS'`,[b.id]);
+    const successfulPaid=Number(paidResult.rows[0].total||0);
+    totals.remainingTotal=Math.max(0,Number(totals.grandTotal)-successfulPaid);
+    if(totals.remainingTotal>0){
+      const pendingBalance=await pool.query(`SELECT 1 FROM payments WHERE booking_id=$1 AND type='BALANCE' AND status='PENDING' LIMIT 1`,[b.id]);
+      return res.status(409).json({
+        code:'PAYMENT_REQUIRED',
+        remainingTotal:totals.remainingTotal,
+        message:pendingBalance.rowCount
+          ? `Còn ${vnd(totals.remainingTotal)} chưa được xác nhận. Vui lòng xác nhận khoản thanh toán đang chờ rồi thử trả phòng lại.`
+          : `Hóa đơn còn ${vnd(totals.remainingTotal)} chưa thanh toán. Hãy thu và ghi nhận khoản còn lại trước khi trả phòng.`
+      });
+    }
     await pool.query(`INSERT INTO invoices(booking_id,room_total,service_total,surcharge,deposit_total,grand_total,remaining_total)
       VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(booking_id) DO UPDATE SET room_total=EXCLUDED.room_total,service_total=EXCLUDED.service_total,surcharge=EXCLUDED.surcharge,deposit_total=EXCLUDED.deposit_total,grand_total=EXCLUDED.grand_total,remaining_total=EXCLUDED.remaining_total`,
       [b.id,b.room_price,s,surcharge,b.deposit_amount,totals.grandTotal,totals.remainingTotal]);
-    if(Number(totals.remainingTotal)>0){
-      // Không tự động ghi nhận thanh toán khi lễ tân bấm Trả phòng.
-      // Khoản còn lại phải được khách gửi yêu cầu và lễ tân xác nhận SUCCESS trước khi checkout.
-      const balance=await pool.query(`SELECT id,status,amount,provider FROM payments WHERE booking_id=$1 AND type='BALANCE' ORDER BY created_at DESC`,[b.id]);
-      const successBalance=balance.rows.find(x=>x.status==='SUCCESS');
-      if(Number(successBalance?.amount||0) < Number(totals.remainingTotal)){
-        const pendingBalance=balance.rows.find(x=>x.status==='PENDING');
-        return res.status(409).json({message:pendingBalance
-          ? 'Khoản thanh toán còn lại đang chờ lễ tân xác nhận. Vui lòng chờ duyệt thanh toán trước khi trả phòng.'
-          : 'Chưa có khoản thanh toán còn lại được xác nhận. Khách cần chọn tiền mặt hoặc chuyển khoản và lễ tân phải duyệt trước khi trả phòng.'});
-      }
-    }
     const updated=(await pool.query(`UPDATE bookings SET status='COMPLETED',actual_check_out=NOW() WHERE id=$1 RETURNING *`,[b.id])).rows[0];
     await pool.query(`UPDATE rooms SET status='CLEANING',cleaning_started_at=NOW(),cleaning_completed_at=NULL WHERE id=$1`,[b.room_id]);
     await log(req.user.sub,'CHECK_OUT','BOOKING',b.id,totals);
-    res.json({booking:updated,invoice:totals});
+    res.json({booking:hideBookingIdCard(updated),invoice:totals});
     if(b.customer_id) await notify(b.customer_id,'Hóa đơn đã sẵn sàng',
       `Booking ${bookingCode} đã trả phòng. Tổng hóa đơn: ${vnd(totals.grandTotal)}. Xem chi tiết trong mục Hóa đơn.`,'/account');
   }catch(e){next(e)}
+});
+
+// Lễ tân ghi nhận khoản còn lại sau khi thực tế đã thu tiền mặt hoặc kiểm tra chuyển khoản.
+router.post('/reception/payments/collect',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),async(req,res,next)=>{
+  const {bookingCode,surcharge=0,method}=req.body;
+  if(!['CASH','BANK_TRANSFER'].includes(method)) return res.status(400).json({message:'Chọn tiền mặt hoặc chuyển khoản đã được kiểm tra.'});
+  const c=await pool.connect();
+  try{
+    await c.query('BEGIN');
+    const b=(await c.query(`SELECT * FROM bookings WHERE booking_code=$1 AND status='CHECKED_IN' FOR UPDATE`,[bookingCode])).rows[0];
+    if(!b){await c.query('ROLLBACK');return res.status(400).json({message:'Booking không ở trạng thái đang lưu trú.'});}
+    const services=(await c.query(`SELECT COALESCE(SUM(quantity*unit_price) FILTER (WHERE status NOT IN ('CANCELLED','RESERVED')),0) total FROM booking_services WHERE booking_id=$1`,[b.id])).rows[0].total;
+    const totals=invoiceTotals({room:b.room_price,services,surcharge,deposit:b.deposit_amount});
+    const paid=Number((await c.query(`SELECT COALESCE(SUM(amount),0) total FROM payments WHERE booking_id=$1 AND type IN ('DEPOSIT','BALANCE') AND status='SUCCESS'`,[b.id])).rows[0].total||0);
+    const amount=Math.max(0,Number(totals.grandTotal)-paid);
+    if(amount<=0){await c.query('ROLLBACK');return res.status(409).json({message:'Hóa đơn đã được thanh toán đủ.'});}
+    const pending=(await c.query(`SELECT id FROM payments WHERE booking_id=$1 AND type='BALANCE' AND status='PENDING' LIMIT 1`,[b.id])).rowCount;
+    if(pending){await c.query('ROLLBACK');return res.status(409).json({message:'Booking đang có khoản thanh toán chờ xác nhận. Hãy xử lý khoản đó trong mục Duyệt thanh toán để tránh ghi nhận trùng.'});}
+    const payment=(await c.query(`INSERT INTO payments(booking_id,transaction_code,amount,type,status,provider,paid_at)
+      VALUES($1,$2,$3,'BALANCE','SUCCESS',$4,NOW()) RETURNING id,amount,type,status,provider,paid_at`,
+      [b.id,`RECEPTION-${b.booking_code}-${Date.now()}`,amount,method])).rows[0];
+    await c.query(`INSERT INTO invoices(booking_id,room_total,service_total,surcharge,deposit_total,grand_total,remaining_total)
+      VALUES($1,$2,$3,$4,$5,$6,0) ON CONFLICT(booking_id) DO UPDATE SET room_total=EXCLUDED.room_total,service_total=EXCLUDED.service_total,surcharge=EXCLUDED.surcharge,deposit_total=EXCLUDED.deposit_total,grand_total=EXCLUDED.grand_total,remaining_total=0`,
+      [b.id,b.room_price,services,surcharge,b.deposit_amount,totals.grandTotal]);
+    await c.query(`INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,metadata) VALUES($1,$2,$3,$4,$5)`,
+      [req.user.sub,'RECEPTION_PAYMENT_COLLECTED','PAYMENT',payment.id,JSON.stringify({bookingCode:b.booking_code,amount,method})]);
+    await c.query('COMMIT');
+    res.status(201).json({payment,remainingTotal:0,message:`Đã ghi nhận ${vnd(amount)} thanh toán ${method==='CASH'?'tiền mặt':'chuyển khoản'}.`});
+    if(b.customer_id){
+      try{await sendInvoiceEmail(b.id,{subjectPrefix:'Hóa đơn thanh toán'});}
+      catch(mailErr){console.error('[MAIL] Không gửi được hóa đơn checkout cho booking',b.booking_code,'-',mailErr.message);}
+      try{await notify(b.customer_id,'Thanh toán đã được ghi nhận',`Khoản thanh toán ${vnd(amount)} cho booking ${b.booking_code} đã được lễ tân ghi nhận.`,'/account');}
+      catch(notifyErr){console.error('[NOTIFY] Không tạo được thông báo thanh toán cho booking',b.booking_code,'-',notifyErr.message);}
+    }
+  }catch(e){await c.query('ROLLBACK');next(e)}finally{c.release()}
 });
 
 // Housekeeping: sau checkout phòng vào trạng thái đang dọn. Chỉ nhân viên mới được xác nhận dọn xong.
@@ -1212,6 +1290,9 @@ router.post('/reception/services',auth,roles('ADMIN','MANAGER','RECEPTIONIST'),a
     const {bookingId,serviceId,quantity=1}=req.body;
     const qty=Number(quantity);
     if(!bookingId||!serviceId||!Number.isInteger(qty)||qty<1||qty>50) return res.status(400).json({message:'Booking, dịch vụ hoặc số lượng không hợp lệ'});
+    const booking=(await pool.query(`SELECT id,status FROM bookings WHERE id=$1`,[bookingId])).rows[0];
+    if(!booking)return res.status(404).json({message:'Không tìm thấy booking'});
+    if(booking.status!=='CHECKED_IN')return res.status(409).json({message:'Chỉ có thể thêm dịch vụ vào hóa đơn khi khách đang lưu trú'});
     const s=(await pool.query(`SELECT * FROM services WHERE id=$1 AND is_active=true`,[serviceId])).rows[0];
     if(!s)return res.status(404).json({message:'Dịch vụ không tồn tại'});
     const r=await pool.query(`INSERT INTO booking_services(booking_id,service_id,quantity,unit_price,status) VALUES($1,$2,$3,$4,'PENDING') RETURNING *`,
@@ -1515,12 +1596,44 @@ router.delete('/admin/room-types/:id',auth,roles('ADMIN','MANAGER'),async(req,re
 
 router.post('/admin/rooms',auth,roles('ADMIN','MANAGER'),async(req,res,next)=>{
   try{
-    const {roomNumber,roomTypeId}=req.body;
-    if(!roomNumber||!roomTypeId) return res.status(400).json({message:'Thiếu số phòng hoặc loại phòng'});
-    const r=await pool.query(`INSERT INTO rooms(room_number,room_type_id) VALUES($1,$2) RETURNING *`,[roomNumber,roomTypeId]);
-    await log(req.user.sub,'ROOM_CREATED','ROOM',r.rows[0].id);
-    res.status(201).json(r.rows[0]);
-  }catch(e){next(e)}
+    const {roomNumber,roomTypeId,roomType}=req.body;
+    if(!roomNumber||(!roomTypeId&&!roomType)) return res.status(400).json({message:'Thiếu số phòng hoặc thông tin loại phòng'});
+    const client=await pool.connect();
+    try{
+      await client.query('BEGIN');
+      let selectedTypeId=roomTypeId;
+      if(roomType){
+        const category=String(roomType.category||'').trim();
+        const doubleBeds=Number(roomType.doubleBeds)||0;
+        const singleBeds=Number(roomType.singleBeds)||0;
+        const capacity=doubleBeds*2+singleBeds;
+        const price=Number(roomType.basePrice);
+        if(!['Phòng thường','Phòng cao cấp','Phòng nhóm','Phòng gia đình'].includes(category)) throw Object.assign(new Error('Loại phòng không hợp lệ'),{status:400});
+        if(doubleBeds<0||doubleBeds>4||singleBeds<0||singleBeds>4||capacity<1) throw Object.assign(new Error('Vui lòng chọn số giường hợp lệ'),{status:400});
+        if(!Number.isFinite(price)||price<0) throw Object.assign(new Error('Giá phòng không hợp lệ'),{status:400});
+        const bedText=[doubleBeds?`${doubleBeds} giường đôi`:null,singleBeds?`${singleBeds} giường đơn`:null].filter(Boolean).join(' và ');
+        const name=`${category} · ${bedText}`;
+        const description=String(roomType.description||'').trim()||`${category} gồm ${bedText}, phù hợp tối đa ${capacity} khách.`;
+        const found=await client.query(`SELECT id FROM room_types WHERE category=$1 AND double_beds=$2 AND single_beds=$3`,[category,doubleBeds,singleBeds]);
+        if(found.rowCount){
+          selectedTypeId=found.rows[0].id;
+          await client.query(`UPDATE room_types SET name=$1,description=$2,capacity=$3,base_price=$4 WHERE id=$5`,[name,description,capacity,price,selectedTypeId]);
+        }else{
+          const created=await client.query(`INSERT INTO room_types(name,category,double_beds,single_beds,description,capacity,base_price) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,[name,category,doubleBeds,singleBeds,description,capacity,price]);
+          selectedTypeId=created.rows[0].id;
+        }
+      }
+      const r=await client.query(`INSERT INTO rooms(room_number,room_type_id) VALUES($1,$2) RETURNING *`,[roomNumber,selectedTypeId]);
+      const result=(await client.query(`SELECT r.*,rt.name room_type_name,rt.category room_type_category,rt.double_beds,rt.single_beds,rt.description,rt.capacity,rt.base_price,rt.amenities FROM rooms r JOIN room_types rt ON rt.id=r.room_type_id WHERE r.id=$1`,[r.rows[0].id])).rows[0];
+      await client.query('COMMIT');
+      await log(req.user.sub,'ROOM_CREATED','ROOM',result.id);
+      res.status(201).json(result);
+    }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+  }catch(e){
+    if(e.status) return res.status(e.status).json({message:e.message});
+    if(e.code==='23505') return res.status(409).json({message:'Số phòng hoặc cấu hình loại phòng đã tồn tại'});
+    next(e)
+  }
 });
 
 router.patch('/admin/rooms/:id',auth,roles('ADMIN','MANAGER'),async(req,res,next)=>{
@@ -1584,7 +1697,7 @@ router.post('/admin/payments/:id/confirm',auth,roles('ADMIN','RECEPTIONIST'),asy
     }
     await log(req.user.sub,'PAYMENT_CONFIRMED','PAYMENT',p.id,{bookingCode:b.booking_code,type:p.type,amount:p.amount});
     await c.query('COMMIT');
-    res.json({payment:updated,booking:b});
+    res.json({payment:updated,booking:hideBookingIdCard(b)});
     // QUAN TRỌNG: transaction đã COMMIT và đã trả response cho client ở trên rồi.
     // Việc gửi email/thông báo chỉ là bước "cộng thêm" — nếu SMTP lỗi (sai mật khẩu app,
     // Gmail chặn, mất mạng...) mà không tự bắt lỗi ở đây, code cũ sẽ rơi xuống catch() bên

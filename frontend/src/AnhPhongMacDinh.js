@@ -1,7 +1,8 @@
 const photoUrl = (id) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1400&q=85`;
 const roomGalleries = {
   standard: [photoUrl('photo-1566665797739-1674de7a421a'), photoUrl('photo-1582719478250-c89cae4dc85b'), photoUrl('photo-1578683010236-d716f9a3f461'), photoUrl('photo-1590490360182-c33d57733427')],
-  double: [photoUrl('photo-1564501049412-61c2a3083791'), photoUrl('photo-1590490360182-c33d57733427'), photoUrl('photo-1582719478250-c89cae4dc85b'), photoUrl('photo-1566665797739-1674de7a421a')],
+  standardDouble: [photoUrl('photo-1578683010236-d716f9a3f461'), photoUrl('photo-1590490360182-c33d57733427'), photoUrl('photo-1582719478250-c89cae4dc85b'), photoUrl('photo-1566665797739-1674de7a421a')],
+  double: [photoUrl('photo-1590490360182-c33d57733427'), photoUrl('photo-1578683010236-d716f9a3f461'), photoUrl('photo-1566665797739-1674de7a421a'), photoUrl('photo-1582719478250-c89cae4dc85b')],
   premiumSingle: [photoUrl('photo-1582719478250-c89cae4dc85b'), photoUrl('photo-1566665797739-1674de7a421a'), photoUrl('photo-1578683010236-d716f9a3f461'), photoUrl('photo-1564501049412-61c2a3083791')],
   premiumDouble: [photoUrl('photo-1564501049412-61c2a3083791'), photoUrl('photo-1582719478250-c89cae4dc85b'), photoUrl('photo-1590490360182-c33d57733427'), photoUrl('photo-1578683010236-d716f9a3f461')],
   family: [photoUrl('photo-1590490360182-c33d57733427'), photoUrl('photo-1564501049412-61c2a3083791'), photoUrl('photo-1566665797739-1674de7a421a'), photoUrl('photo-1582719478250-c89cae4dc85b')],
@@ -10,9 +11,14 @@ const roomGalleries = {
 
 // Ảnh minh họa đồng nhất giữa thẻ phòng và trang đặt phòng; ảnh quản lý tải lên được ưu tiên.
 export function getRoomGallery(room) {
+  const type = `${room?.room_type_name || ''} ${room?.description || ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const premium = /cao cap|premium|suite|deluxe/.test(type);
+  // Phòng tiêu chuẩn và phòng đôi dùng ảnh minh họa riêng theo số giường,
+  // tránh ảnh tải lên bị dùng lặp khiến hai loại phòng trông như cùng một hạng.
+  if (!premium && /(?:2|two)\s*(?:giuong|bed)|twin|double|phong doi/.test(type)) return roomGalleries.standardDouble;
+  if (!premium && /standard|phong thuong|single|phong don/.test(type)) return roomGalleries.standard;
   const uploaded = Array.isArray(room?.images) ? room.images.filter(Boolean) : [];
   if (uploaded.length) return uploaded;
-  const type = `${room?.room_type_name || ''} ${room?.description || ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (/5\s*(?:giuong|bed)|tap the|dorm/.test(type)) return roomGalleries.group;
   if (/family|gia dinh/.test(type)) return roomGalleries.family;
   if (/cao cap|premium|suite|deluxe/.test(type)) return /2\s*(?:giuong|bed)|suite|sofa rieng|twin|double/.test(type) ? roomGalleries.premiumDouble : roomGalleries.premiumSingle;
