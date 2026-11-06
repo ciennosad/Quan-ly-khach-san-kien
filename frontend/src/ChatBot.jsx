@@ -18,7 +18,7 @@ function RobotIcon({ size = 26 }) {
 export default function ChatBot(){
   const [open,setOpen]=useState(false);
   const [input,setInput]=useState('');
-  const [messages,setMessages]=useState([{role:'bot',text:'Xin chào! Mình là trợ lý LUXORA. Bạn có thể hỏi về phòng, sức chứa, giá, dịch vụ hoặc giờ nhận/trả phòng.'}]);
+  const [messages,setMessages]=useState([{role:'bot',text:'Xin chào! Mình là trợ lý HERO. Bạn có thể hỏi về phòng, sức chứa, giá, dịch vụ hoặc giờ nhận/trả phòng.'}]);
   const [loading,setLoading]=useState(false);
   const [aiEnabled,setAiEnabled]=useState(null);
   useEffect(()=>{
@@ -39,13 +39,13 @@ export default function ChatBot(){
     finally{setLoading(false)}
   }
   return <>
-    {open && <section className="luxora-chatbot" aria-label="Trợ lý LUXORA">
-      <header><div className="chatbot-brand"><span className="chatbot-robot-badge"><RobotIcon size={25}/></span><span><b>Robot LUXORA</b><small>Trợ lý khách sạn · tư vấn phòng & dịch vụ</small></span></div><button onClick={()=>setOpen(false)} aria-label="Đóng">×</button></header>
+    {open && <section className="luxora-chatbot" aria-label="Trợ lý HERO">
+      <header><div className="chatbot-brand"><span className="chatbot-robot-badge"><RobotIcon size={25}/></span><span><b>Robot HERO</b><small>Trợ lý khách sạn · tư vấn phòng & dịch vụ</small></span></div><button onClick={()=>setOpen(false)} aria-label="Đóng">×</button></header>
       <div className={`chatbot-status-banner ${aiEnabled===true?'is-ai':'is-basic'}`}><span className="chatbot-status-dot"/><span>{aiEnabled===null?'Đang kết nối trợ lý…':aiEnabled?'AI linh hoạt đang bật':'Đang dùng trả lời cơ bản'}</span>{aiEnabled===false&&<small>Thêm OPENAI_API_KEY vào backend/.env để bật hội thoại AI linh hoạt.</small>}</div>      <div className="chatbot-body">
         {messages.map((m,i)=><div className={`chat-message ${m.role}`} key={i}><div>{m.text}</div>{m.suggestions?.length>0&&<div className="chat-suggestions">{m.suggestions.map((s,j)=><div className="chat-suggestion" key={j}><b>{s.name}</b>{s.capacity&&<span>Tối đa {s.capacity} khách</span>}{s.price!=null&&<strong>{money(s.price)}/đêm</strong>}{s.description&&<small>{s.description}</small>}</div>)}</div>}</div>)}
-        {loading&&<div className="chat-message bot"><div>Đang tra cứu thông tin LUXORA…</div></div>}
+        {loading&&<div className="chat-message bot"><div>Đang tra cứu thông tin HERO…</div></div>}
       </div>
-      <div className="chatbot-quick"><button onClick={()=>send('Nhà tôi có 4 người nên chọn phòng nào?')}>👨‍👩‍👧 4 người</button><button onClick={()=>send('LUXORA có những loại phòng nào?')}>🛏️ Loại phòng</button><button onClick={()=>send('Khách sạn nhận phòng lúc mấy giờ?')}>🕑 Giờ nhận/trả</button></div>
+      <div className="chatbot-quick"><button onClick={()=>send('Nhà tôi có 4 người nên chọn phòng nào?')}>👨‍👩‍👧 4 người</button><button onClick={()=>send('HERO có những loại phòng nào?')}>🛏️ Loại phòng</button><button onClick={()=>send('Khách sạn nhận phòng lúc mấy giờ?')}>🕑 Giờ nhận/trả</button></div>
       <form className="chatbot-input" onSubmit={e=>{e.preventDefault();send()}}><input value={input} onChange={e=>setInput(e.target.value)} placeholder="Hỏi về khách sạn…"/><button disabled={loading}>➤</button></form>
     </section>}
     <button className={`luxora-chatbot-fab ${open?'active':''}`} onClick={()=>setOpen(v=>!v)} aria-label="Mở chatbot">{open?<span className="chatbot-close">×</span>:<RobotIcon size={32}/>}</button>

@@ -21,7 +21,7 @@ export default function ForgotPassword(){
   }
 
   return <div className="auth-page">
-    <div className="auth-art"><div><span className="eyebrow">LUXORA HOTEL</span><h1>Quên mật khẩu?<br/><em>Không sao cả.</em></h1></div></div>
+    <div className="auth-art"><div><span className="eyebrow">HERO HOTEL</span><h1>Quên mật khẩu?<br/><em>Không sao cả.</em></h1></div></div>
     <div className="auth-box">
       <span className="eyebrow">RESET PASSWORD</span>
       <h2>Quên mật khẩu</h2>

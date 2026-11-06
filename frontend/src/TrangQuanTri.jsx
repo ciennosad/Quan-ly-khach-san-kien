@@ -201,7 +201,7 @@ export default function AdminHome() {
   const [specialPrices, setSpecialPrices] = useState([]);
   const [newSpecialPrice, setNewSpecialPrice] = useState({ roomTypeId: '', name: '', dateFrom: '', dateTo: '', price: '' });
   const [newDiscount, setNewDiscount] = useState({ code: '', percentOff: '', amountOff: '', maxUses: '', validFrom: '', validTo: '' });
-  const [paymentSettings, setPaymentSettings] = useState({ bank_code: 'VCB', bank_account: '', bank_account_name: 'LUXORA HOTEL', hotel_email: '' });
+  const [paymentSettings, setPaymentSettings] = useState({ bank_code: 'VCB', bank_account: '', bank_account_name: 'HERO HOTEL', hotel_email: '' });
   const [operationSettings, setOperationSettings] = useState({ time_rules_enabled: true, cleaning_rules_enabled: true });
   const [settingsMsg, setSettingsMsg] = useState('');
   const [reportMsg, setReportMsg] = useState('');
@@ -680,10 +680,10 @@ export default function AdminHome() {
               <span>Chọn tháng dữ liệu ở phía trên rồi chọn loại file cần xuất.</span>
             </div>
             <div className="report-export-actions">
-              <button className="btn dark" onClick={async()=>{try{setExportMsg('Đang tạo file Excel tổng hợp…');await downloadFile(`/admin/reports/export.xls?month=${reportMonth}`,`LUXORA-Bao-cao-${reportMonth}.xls`);setExportMsg('Đã tải file Excel tổng hợp.')}catch(e){setExportMsg(e.message)}}}>📊 Xuất Excel báo cáo tổng hợp</button>
-              <button className="btn ghost" onClick={async()=>{try{setExportMsg('Đang tạo file Excel chấm công…');await downloadFile(`/admin/reports/attendance.xls?month=${reportMonth}`,`LUXORA-Cham-cong-${reportMonth}.xls`);setExportMsg('Đã tải file Excel chấm công.')}catch(e){setExportMsg(e.message)}}}>🕘 Xuất Excel chấm công</button>
-              <button className="btn ghost" onClick={async()=>{try{setExportMsg('Đang tạo file Excel check-in/check-out…');await downloadFile(`/admin/reports/checkin-out.xls?month=${reportMonth}`,`LUXORA-Checkin-Checkout-${reportMonth}.xls`);setExportMsg('Đã tải file Excel check-in/check-out.')}catch(e){setExportMsg(e.message)}}}>🏨 Xuất Excel check-in / check-out</button>
-              <button className="btn ghost" onClick={async()=>{try{setExportMsg('Đang tạo file Excel thu tiền mặt…');await downloadFile(`/admin/reports/cash-payments.xls?month=${reportMonth}`,`LUXORA-Tien-mat-${reportMonth}.xls`);setExportMsg('Đã tải file Excel thu tiền mặt.')}catch(e){setExportMsg(e.message)}}}>💵 Xuất Excel thu tiền mặt</button>
+              <button className="btn dark" onClick={async()=>{try{setExportMsg('Đang tạo file Excel tổng hợp…');await downloadFile(`/admin/reports/export.xls?month=${reportMonth}`,`HERO-Bao-cao-${reportMonth}.xls`);setExportMsg('Đã tải file Excel tổng hợp.')}catch(e){setExportMsg(e.message)}}}>📊 Xuất Excel báo cáo tổng hợp</button>
+              <button className="btn ghost" onClick={async()=>{try{setExportMsg('Đang tạo file Excel chấm công…');await downloadFile(`/admin/reports/attendance.xls?month=${reportMonth}`,`HERO-Cham-cong-${reportMonth}.xls`);setExportMsg('Đã tải file Excel chấm công.')}catch(e){setExportMsg(e.message)}}}>🕘 Xuất Excel chấm công</button>
+              <button className="btn ghost" onClick={async()=>{try{setExportMsg('Đang tạo file Excel check-in/check-out…');await downloadFile(`/admin/reports/checkin-out.xls?month=${reportMonth}`,`HERO-Checkin-Checkout-${reportMonth}.xls`);setExportMsg('Đã tải file Excel check-in/check-out.')}catch(e){setExportMsg(e.message)}}}>🏨 Xuất Excel check-in / check-out</button>
+              <button className="btn ghost" onClick={async()=>{try{setExportMsg('Đang tạo file Excel thu tiền mặt…');await downloadFile(`/admin/reports/cash-payments.xls?month=${reportMonth}`,`HERO-Tien-mat-${reportMonth}.xls`);setExportMsg('Đã tải file Excel thu tiền mặt.')}catch(e){setExportMsg(e.message)}}}>💵 Xuất Excel thu tiền mặt</button>
             </div>
           </div>
           {reportMsg && <div className="notice error-notice">{reportMsg}</div>}
@@ -757,13 +757,13 @@ export default function AdminHome() {
           </div>
           <div className="attendance-qr-panel">
             <div className="attendance-qr-visual">
-              {attendanceQr?.qrDataUrl ? <img src={attendanceQr.qrDataUrl} alt="QR chấm công LUXORA" /> : <div className="attendance-qr-loading">Đang tạo QR…</div>}
-              {attendanceQr?.qrDataUrl && <a className="btn dark attendance-qr-download" href={attendanceQr.qrDataUrl} download="LUXORA-QR-cham-cong.png">Tải QR xuống</a>}
+              {attendanceQr?.qrDataUrl ? <img src={attendanceQr.qrDataUrl} alt="QR chấm công HERO" /> : <div className="attendance-qr-loading">Đang tạo QR…</div>}
+              {attendanceQr?.qrDataUrl && <a className="btn dark attendance-qr-download" href={attendanceQr.qrDataUrl} download="HERO-QR-cham-cong.png">Tải QR xuống</a>}
             </div>
             <div className="attendance-qr-info">
               <span className="eyebrow">QR CHẤM CÔNG</span>
               <h3>Quét bằng điện thoại</h3>
-              <p>Đặt mã QR trên màn hình lớn tại quầy hoặc khu vực chấm công. Lễ tân/Nhân viên dùng Camera điện thoại để quét, mở liên kết LUXORA và đăng nhập tài khoản cá nhân.</p>
+              <p>Đặt mã QR trên màn hình lớn tại quầy hoặc khu vực chấm công. Lễ tân/Nhân viên dùng Camera điện thoại để quét, mở liên kết HERO và đăng nhập tài khoản cá nhân.</p>
               <div className="attendance-qr-timer"><b>{attendanceQrSeconds > 0 ? `Còn ${Math.floor(attendanceQrSeconds / 60)}:${String(attendanceQrSeconds % 60).padStart(2,'0')}` : 'Đang tạo mã mới…'}</b><span>Mỗi mã có hiệu lực 10 phút</span></div>
               <div className="attendance-qr-steps"><span><b>1</b> Mở Camera</span><span><b>2</b> Quét QR</span><span><b>3</b> Đăng nhập</span><span><b>4</b> Tự động chấm vào/ra</span></div>
               <small className="attendance-qr-note">Mã được thiết kế với vùng trắng và mức sửa lỗi phù hợp để camera điện thoại dễ nhận hơn.</small>
@@ -835,7 +835,7 @@ export default function AdminHome() {
           <div className="settings-grid">
             <section className="settings-card settings-time-card">
               <span className="eyebrow">VẬN HÀNH</span><h2>Giới hạn giờ nhận / trả phòng</h2>
-              <p>Bật khi LUXORA chạy thật. Khi bật, hệ thống áp dụng check-in từ <b>14:00</b> và check-out đến <b>12:00</b>. Khi tắt, Admin và Quản lý có thể kiểm thử check-in/check-out bất cứ lúc nào.</p>
+              <p>Bật khi HERO chạy thật. Khi bật, hệ thống áp dụng check-in từ <b>14:00</b> và check-out đến <b>12:00</b>. Khi tắt, Admin và Quản lý có thể kiểm thử check-in/check-out bất cứ lúc nào.</p>
               <div className="time-mode-row">
                 <div>
                   <strong>{operationSettings.time_rules_enabled ? 'ĐANG BẬT — CHẾ ĐỘ CHẠY THẬT' : 'ĐANG TẮT — CHẾ ĐỘ KIỂM THỬ'}</strong>
@@ -850,7 +850,7 @@ export default function AdminHome() {
             </section>
             <section className="settings-card settings-time-card">
               <span className="eyebrow">VẬN HÀNH</span><h2>Giới hạn giờ dọn phòng</h2>
-              <p>Bật khi LUXORA chạy thật để chỉ cho phép xác nhận <b>Đã dọn xong</b> trong khung <b>12:00–14:00</b>. Tắt khi cần kiểm thử nghiệp vụ ngoài khung giờ này.</p>
+              <p>Bật khi HERO chạy thật để chỉ cho phép xác nhận <b>Đã dọn xong</b> trong khung <b>12:00–14:00</b>. Tắt khi cần kiểm thử nghiệp vụ ngoài khung giờ này.</p>
               <div className="time-mode-row">
                 <div>
                   <strong>{operationSettings.cleaning_rules_enabled ? 'ĐANG BẬT — CHẾ ĐỘ CHẠY THẬT' : 'ĐANG TẮT — CHẾ ĐỘ KIỂM THỬ'}</strong>
@@ -869,7 +869,7 @@ export default function AdminHome() {
               <form onSubmit={savePaymentSettings} className="manage-form settings-form">
                 <label>Ngân hàng / mã BIN<input value={paymentSettings.bank_code} onChange={e => setPaymentSettings({...paymentSettings,bank_code:e.target.value})} placeholder="VCB" required /></label>
                 <label>Số tài khoản<input value={paymentSettings.bank_account} onChange={e => setPaymentSettings({...paymentSettings,bank_account:e.target.value})} placeholder="0123456789" required /></label>
-                <label>Tên tài khoản<input value={paymentSettings.bank_account_name} onChange={e => setPaymentSettings({...paymentSettings,bank_account_name:e.target.value})} placeholder="LUXORA HOTEL" required /></label>
+                <label>Tên tài khoản<input value={paymentSettings.bank_account_name} onChange={e => setPaymentSettings({...paymentSettings,bank_account_name:e.target.value})} placeholder="HERO HOTEL" required /></label>
                 <label>Thư điện tử khách sạn<input type="email" value={paymentSettings.hotel_email||''} onChange={e => setPaymentSettings({...paymentSettings,hotel_email:e.target.value})} placeholder="billing@luxora.vn" /></label>
                 <button className="btn dark">Lưu cấu hình</button>
               </form>

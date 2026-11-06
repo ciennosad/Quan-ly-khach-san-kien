@@ -7,9 +7,9 @@ export default function StaffWorkspace({ user }) {
   return <main className="page-shell staff-workspace-page">
     <div className="section-head">
       <div>
-        <span className="eyebrow">LUXORA · NHÂN VIÊN</span>
+        <span className="eyebrow">HERO · NHÂN VIÊN</span>
         <h1>Khu vực <em>Nhân viên</em></h1>
-        <p className="muted">Giao diện gọn để xử lý công việc hằng ngày, đồng bộ cùng phong cách trang chủ LUXORA.</p>
+        <p className="muted">Giao diện gọn để xử lý công việc hằng ngày, đồng bộ cùng phong cách trang chủ HERO.</p>
       </div>
       <Link className="btn ghost" to="/">← Về trang chủ</Link>
     </div>

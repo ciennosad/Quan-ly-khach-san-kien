@@ -232,8 +232,8 @@ async function sendCheckinReminders(){
         const b=candidate;
         const when=new Date(b.check_in).toLocaleString('vi-VN',{dateStyle:'medium',timeStyle:'short'});
         const clientUrl=process.env.CLIENT_URL||'http://localhost:5173';
-        const html=`<!doctype html><html><body style="margin:0;background:#f3efe7;font-family:Arial,sans-serif;color:#18212b"><div style="max-width:650px;margin:24px auto;background:#fff;border:1px solid #e4ddcf"><div style="padding:28px 32px;background:#18212b;color:#fff"><div style="font-size:11px;letter-spacing:4px;color:#d4b47a">LUXORA HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:400;margin:12px 0 4px">Nhắc lịch nhận phòng</h1></div><div style="padding:30px 32px"><p>Xin chào <b>${String(b.full_name||'Quý khách').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</b>,</p><p>LUXORA xin nhắc bạn rằng bạn sẽ nhận phòng sau khoảng <b>30 phút</b>.</p><div style="padding:18px;background:#f7f3ea;border:1px solid #e4ddcf"><b>Booking:</b> ${b.booking_code}<br><b>Phòng:</b> ${b.room_number} — ${b.room_type_name}<br><b>Giờ nhận phòng:</b> ${when}</div><p style="margin-top:22px">Vui lòng sắp xếp thời gian di chuyển đến khách sạn để làm thủ tục nhận phòng.</p><a href="${clientUrl}/account" style="display:inline-block;padding:12px 18px;background:#18212b;color:#fff;text-decoration:none">Mở LUXORA</a><p style="font-size:12px;color:#777;margin-top:26px">Đây là email nhắc lịch tự động từ LUXORA HOTEL.</p></div></div></body></html>`;
-        await sendMail({to:b.email,subject:`LUXORA — Nhắc lịch nhận phòng ${b.booking_code}`,html});
+        const html=`<!doctype html><html><body style="margin:0;background:#f3efe7;font-family:Arial,sans-serif;color:#18212b"><div style="max-width:650px;margin:24px auto;background:#fff;border:1px solid #e4ddcf"><div style="padding:28px 32px;background:#18212b;color:#fff"><div style="font-size:11px;letter-spacing:4px;color:#d4b47a">HERO HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:400;margin:12px 0 4px">Nhắc lịch nhận phòng</h1></div><div style="padding:30px 32px"><p>Xin chào <b>${String(b.full_name||'Quý khách').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</b>,</p><p>HERO xin nhắc bạn rằng bạn sẽ nhận phòng sau khoảng <b>30 phút</b>.</p><div style="padding:18px;background:#f7f3ea;border:1px solid #e4ddcf"><b>Booking:</b> ${b.booking_code}<br><b>Phòng:</b> ${b.room_number} — ${b.room_type_name}<br><b>Giờ nhận phòng:</b> ${when}</div><p style="margin-top:22px">Vui lòng sắp xếp thời gian di chuyển đến khách sạn để làm thủ tục nhận phòng.</p><a href="${clientUrl}/account" style="display:inline-block;padding:12px 18px;background:#18212b;color:#fff;text-decoration:none">Mở HERO</a><p style="font-size:12px;color:#777;margin-top:26px">Đây là email nhắc lịch tự động từ HERO HOTEL.</p></div></div></body></html>`;
+        await sendMail({to:b.email,subject:`HERO — Nhắc lịch nhận phòng ${b.booking_code}`,html});
         await pool.query(`INSERT INTO notifications(user_id,title,message,link) VALUES($1,$2,$3,$4)`,[
           b.customer_id,'Sắp đến giờ nhận phòng',`Booking ${b.booking_code} — phòng ${b.room_number}. Bạn sẽ nhận phòng lúc ${when}, vui lòng sắp xếp thời gian di chuyển đến khách sạn.`,'/account'
         ]);
@@ -250,7 +250,7 @@ async function sendCheckinReminders(){
 
 ensurePayrollSchema().then(ensureRoomTypeCatalog).catch(err=>console.error('[ROOM TYPES] Cannot initialize catalog:',err.message)).finally(()=>{
   app.listen(port,()=>{
-    console.log(`LUXORA API → http://localhost:${port}`);
+    console.log(`HERO API → http://localhost:${port}`);
     expirePaymentHolds();
     sendCheckinReminders();
     setInterval(expirePaymentHolds,30*1000);

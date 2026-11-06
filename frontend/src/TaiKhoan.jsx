@@ -93,7 +93,7 @@ function ServicesTab({ bookings }) {
     <div className="notice">Bạn có thể đăng ký dịch vụ cho booking đã xác nhận. Dịch vụ chỉ được tính vào hóa đơn khi Lễ tân check-in.</div>
     {activeBookings.length>0 ? <label style={{maxWidth:420,display:'block',margin:'18px 0'}}>Đặt phòng sử dụng dịch vụ<select value={bookingCode} onChange={e=>setBookingCode(e.target.value)}>{activeBookings.map(b=><option key={b.id} value={b.booking_code}>{b.booking_code} · Phòng {b.room_number}</option>)}</select></label> : <div className="empty">Bạn chưa có đặt phòng đang hoạt động để đặt dịch vụ.</div>}
     {msg && <div className="notice">{msg}</div>}
-    <div className="service-customer-grid">{services.map(s=>{const display=serviceDisplay(s);return <div className="customer-service-card" key={s.id}><span className="eyebrow">DỊCH VỤ</span><h3>{display.name}</h3><p>{display.description||'Dịch vụ tại LUXORA HOTEL'}</p><b>{money(s.price)}</b><div className="service-order"><input type="number" min="1" max="50" value={qty[s.id]||1} onChange={e=>setQty({...qty,[s.id]:e.target.value})}/><button className="btn dark" disabled={!activeBookings.length} onClick={()=>add(s)}>Thêm vào đặt phòng</button></div></div>})}</div>
+    <div className="service-customer-grid">{services.map(s=>{const display=serviceDisplay(s);return <div className="customer-service-card" key={s.id}><span className="eyebrow">DỊCH VỤ</span><h3>{display.name}</h3><p>{display.description||'Dịch vụ tại HERO HOTEL'}</p><b>{money(s.price)}</b><div className="service-order"><input type="number" min="1" max="50" value={qty[s.id]||1} onChange={e=>setQty({...qty,[s.id]:e.target.value})}/><button className="btn dark" disabled={!activeBookings.length} onClick={()=>add(s)}>Thêm vào đặt phòng</button></div></div>})}</div>
   </div>;
 }
 
@@ -357,7 +357,7 @@ function InvoiceRow({ booking, invoiceOnly = true }) {
         <div className={`invoice-box invoice-card ${invoiceOnly ? 'invoice-customer-layout' : ''}`}>
           <div className="invoice-head">
             <div>
-              <span className="eyebrow">LUXORA HOTEL</span>
+              <span className="eyebrow">HERO HOTEL</span>
               <h3>HÓA ĐƠN LƯU TRÚ</h3>
               <span>{booking.booking_code} · Phòng {booking.room_number} · {roomTypeLabel(booking.room_type_name)}</span>
               <span className="invoice-stay-dates">{date(booking.check_in)} → {date(booking.check_out)}</span>
@@ -405,7 +405,7 @@ function InvoiceRow({ booking, invoiceOnly = true }) {
                           <div className="invoice-deposit-details">
                             <div><span>Mã đặt phòng</span><b>{payQr.bookingCode}</b></div>
                             <div><span>Ngân hàng</span><b>{payQr.bankCode}</b></div>
-                            <div><span>Chủ tài khoản</span><b>{payQr.accountName || 'LUXORA HOTEL'}</b></div>
+                            <div><span>Chủ tài khoản</span><b>{payQr.accountName || 'HERO HOTEL'}</b></div>
                             <div><span>Số tài khoản</span><b>{payQr.account}</b></div>
                             <div><span>Số tiền</span><b>{money(payQr.amount)}</b></div>
                             <div><span>Nội dung chuyển khoản</span><b>{payQr.bookingCode} {payQr.paymentLabel || 'DAT COC'}</b></div>
@@ -597,7 +597,7 @@ function MyRoomsTab({ bookings, profile, onReload, onCancel, onOpenInvoices, msg
   return (
     <div className="customer-dashboard">
       <aside className="customer-dashboard-side">
-        <div className="customer-dashboard-brand"><span className="brand-mark">L</span><span>LUXORA <i>HOTEL</i></span></div>
+        <div className="customer-dashboard-brand"><span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span></div>
         <div className="customer-side-label">KHÁCH HÀNG</div>
         <nav className="customer-side-nav">
           <Link to="/"><span>⌂</span>Trang chủ</Link>
@@ -614,7 +614,7 @@ function MyRoomsTab({ bookings, profile, onReload, onCancel, onOpenInvoices, msg
           <Link to="/account?tab=profile"><span>♙</span>Hồ sơ</Link>
           <Link to="/account?tab=security"><span>◈</span>Bảo mật</Link>
         </nav>
-        <div className="customer-side-help"><b>Hỗ trợ 24/7</b><small>LUXORA luôn sẵn sàng phục vụ bạn</small><span>1900 1234</span></div>
+        <div className="customer-side-help"><b>Hỗ trợ 24/7</b><small>HERO luôn sẵn sàng phục vụ bạn</small><span>1900 1234</span></div>
       </aside>
 
       <div className="customer-dashboard-main">
@@ -653,7 +653,7 @@ function MyRoomsTab({ bookings, profile, onReload, onCancel, onOpenInvoices, msg
             </div>
 
             <div className="customer-stat-grid">
-              <div><span>▣</span><small>Tổng số đặt phòng</small><b>{bookings.length}</b><em>Đã đặt tại LUXORA</em></div>
+              <div><span>▣</span><small>Tổng số đặt phòng</small><b>{bookings.length}</b><em>Đã đặt tại HERO</em></div>
               <div><span>₫</span><small>Tổng chi tiêu phòng</small><b>{money(totalRoomSpend)}</b><em>Tổng theo dữ liệu đặt phòng</em></div>
               <div><span>●</span><small>Đang lưu trú</small><b>{active.length}</b><em>Đặt phòng đang hoạt động</em></div>
             </div>
@@ -725,7 +725,7 @@ export function PayrollTab({ user }) {
           <b>📱 Cách chấm công</b>
           <span>1. Đến khu vực làm việc tại khách sạn.</span>
           <span>2. Mở <b>Camera</b> trên điện thoại và quét QR chấm công trên màn hình Quản lý.</span>
-          <span>3. Mở liên kết LUXORA hiện ra và đăng nhập đúng tài khoản cá nhân nếu được yêu cầu.</span>
+          <span>3. Mở liên kết HERO hiện ra và đăng nhập đúng tài khoản cá nhân nếu được yêu cầu.</span>
           <span>4. Quét lần đầu để <b>Vào ca</b>, quét lần tiếp theo để <b>Ra ca</b>.</span>
           <small>Mã QR có hiệu lực 10 phút. Sau khi hết hạn, Quản lý sẽ có mã mới.</small>
         </div>
@@ -790,7 +790,7 @@ function CustomerInvoicesTab({ bookings }) {
 function CustomerHistoryTab({ bookings }) {
   return <section className="customer-standalone-page">
     <div className="customer-standalone-head">
-      <div><span className="eyebrow">LỊCH SỬ</span><h2>Lịch sử đặt phòng</h2><p>Lịch sử toàn bộ đặt phòng và lưu trú tại LUXORA.</p></div>
+      <div><span className="eyebrow">LỊCH SỬ</span><h2>Lịch sử đặt phòng</h2><p>Lịch sử toàn bộ đặt phòng và lưu trú tại HERO.</p></div>
       <span className="customer-standalone-count">{bookings.length} đặt phòng</span>
     </div>
     {bookings.length ? <div className="customer-history-list customer-history-list-standalone">

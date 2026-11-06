@@ -166,7 +166,7 @@ export default function SiteHeader({ user, onLogout }) {
   return <>
     <header className="site-header">
       <Link to="/" className="brand site-brand" onClick={() => { setMenuOpen(false); setOpenGroup(null); }}>
-        <span className="brand-mark">L</span><span>LUXORA <i>HOTEL</i></span>
+        <span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span>
       </Link>
 
       <nav className="desktop-nav" ref={navRef}>
@@ -242,7 +242,7 @@ export default function SiteHeader({ user, onLogout }) {
     {menuOpen && <>
       <button className="mobile-menu-overlay" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}/>
       <aside className="mobile-drawer">
-        <div className="drawer-head"><Link to="/" className="brand" onClick={() => setMenuOpen(false)}><span className="brand-mark">L</span><span>LUXORA <i>HOTEL</i></span></Link><button onClick={() => setMenuOpen(false)}>×</button></div>
+        <div className="drawer-head"><Link to="/" className="brand" onClick={() => setMenuOpen(false)}><span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span></Link><button onClick={() => setMenuOpen(false)}>×</button></div>
         <Link to="/" onClick={e => { e.preventDefault(); goHomeTop(); }}><Icon name="home"/>Trang chủ</Link>
         <button onClick={() => scrollTo('rooms')}><Icon name="room"/>Phòng</button>
         <button onClick={() => scrollTo('services')}><Icon name="service"/>Dịch vụ</button>

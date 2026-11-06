@@ -302,7 +302,7 @@ CREATE TABLE IF NOT EXISTS hotel_settings (
   id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id = TRUE),
   bank_code VARCHAR(30) NOT NULL DEFAULT 'VCB',
   bank_account VARCHAR(50) NOT NULL DEFAULT '',
-  bank_account_name VARCHAR(120) NOT NULL DEFAULT 'LUXORA HOTEL',
+  bank_account_name VARCHAR(120) NOT NULL DEFAULT 'HERO HOTEL',
   hotel_email VARCHAR(255),
   time_rules_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   cleaning_rules_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -311,7 +311,7 @@ CREATE TABLE IF NOT EXISTS hotel_settings (
 ALTER TABLE hotel_settings ADD COLUMN IF NOT EXISTS time_rules_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE hotel_settings ADD COLUMN IF NOT EXISTS cleaning_rules_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 INSERT INTO hotel_settings(id, bank_code, bank_account, bank_account_name, hotel_email, time_rules_enabled, cleaning_rules_enabled)
-VALUES(TRUE, 'VCB', '', 'LUXORA HOTEL', NULL, TRUE, TRUE)
+VALUES(TRUE, 'VCB', '', 'HERO HOTEL', NULL, TRUE, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 

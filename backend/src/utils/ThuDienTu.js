@@ -34,7 +34,7 @@ export async function sendTestEmail(to) {
   if (!safe) throw new Error('Thiếu email nhận test');
   return sendMail({
     to: safe,
-    subject: 'LUXORA HOTEL — Email SMTP test',
-    html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:32px;background:#f7f3ea;color:#18212b"><div style="background:#fff;padding:28px;border:1px solid #e5dfd2"><div style="letter-spacing:3px;font-size:11px;color:#b08d57">LUXORA HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:500">SMTP hoạt động</h1><p>Email test đã được gửi thành công từ hệ thống LUXORA.</p><p style="color:#6f746f">Bạn có thể dùng cấu hình này để gửi xác nhận đăng ký, xác nhận thanh toán và hóa đơn.</p><div style="margin-top:24px;padding:14px;background:#f7f3ea;font-size:13px">Thời gian: ${new Date().toLocaleString('vi-VN')}</div></div></div>`
+    subject: 'HERO HOTEL — Email SMTP test',
+    html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:32px;background:#f7f3ea;color:#18212b"><div style="background:#fff;padding:28px;border:1px solid #e5dfd2"><div style="letter-spacing:3px;font-size:11px;color:#b08d57">HERO HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:500">SMTP hoạt động</h1><p>Email test đã được gửi thành công từ hệ thống HERO.</p><p style="color:#6f746f">Bạn có thể dùng cấu hình này để gửi xác nhận đăng ký, xác nhận thanh toán và hóa đơn.</p><div style="margin-top:24px;padding:14px;background:#f7f3ea;font-size:13px">Thời gian: ${new Date().toLocaleString('vi-VN')}</div></div></div>`
   });
 }

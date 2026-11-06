@@ -1,6 +1,6 @@
-# Kho kiến thức và kịch bản trả lời cho trợ lý AI LUXORA
+# Kho kiến thức và kịch bản trả lời cho trợ lý AI HERO
 
-> **Bộ kiến thức nền đã được chủ dự án duyệt cho phiên bản hiện tại của LUXORA.** Các câu trả lời phản ánh chức năng đang có và nguyên tắc an toàn mặc định. Khi triển khai tại một khách sạn cụ thể, có thể bổ sung địa chỉ, dịch vụ và chính sách riêng ở mục 8.
+> **Bộ kiến thức nền đã được chủ dự án duyệt cho phiên bản hiện tại của HERO.** Các câu trả lời phản ánh chức năng đang có và nguyên tắc an toàn mặc định. Khi triển khai tại một khách sạn cụ thể, có thể bổ sung địa chỉ, dịch vụ và chính sách riêng ở mục 8.
 >
 > AI cần trả lời theo đúng vai trò của người hỏi. AI chỉ hướng dẫn và tra cứu trong phạm vi được cấp; không tự duyệt thanh toán, hủy booking, đổi trạng thái, xác nhận hoàn tiền hoặc thực hiện giao dịch.
 
@@ -39,7 +39,7 @@ Một số phòng có cùng tên hiển thị; chatbot cần phân biệt theo s
 
 ### Liên hệ khách sạn
 
-**Hỏi:** Tôi muốn liên hệ LUXORA thì gọi hoặc gửi email cho ai?
+**Hỏi:** Tôi muốn liên hệ HERO thì gọi hoặc gửi email cho ai?
 
 **Trả lời chuẩn:** Bạn có thể liên hệ người phụ trách khách sạn, Dương Đình Kiền, qua số điện thoại **0379 887 282** hoặc email **kienduon757@gmail.com**.
 
@@ -237,13 +237,13 @@ Một số phòng có cùng tên hiển thị; chatbot cần phân biệt theo s
 
 **Hỏi:** Tôi có câu hỏi không liên quan đến khách sạn.
 
-**Trả lời chuẩn:** Mình có thể hỗ trợ một số câu hỏi thông tin chung, nhưng ưu tiên hỗ trợ về LUXORA và dịch vụ khách sạn. Với nội dung ngoài phạm vi hoặc cần thông tin chính xác/chuyên môn, mình sẽ nói rõ giới hạn và hướng bạn tới nguồn phù hợp.
+**Trả lời chuẩn:** Mình có thể hỗ trợ một số câu hỏi thông tin chung, nhưng ưu tiên hỗ trợ về HERO và dịch vụ khách sạn. Với nội dung ngoài phạm vi hoặc cần thông tin chính xác/chuyên môn, mình sẽ nói rõ giới hạn và hướng bạn tới nguồn phù hợp.
 
 ## 8. Thông tin riêng bổ sung khi triển khai tại khách sạn thật
 
 Các câu hỏi dưới đây chưa có dữ liệu riêng trong dự án mẫu. AI phải tra cứu thông tin hệ thống nếu có; nếu chưa có, hướng người dùng liên hệ nhân viên và không tự đặt ra câu trả lời. Khi chọn khách sạn vận hành thật, quản trị viên có thể bổ sung các thông tin này:
 
-- Tên thương mại: LUXORA HOTEL. Người phụ trách liên hệ: Dương Đình Kiền. Điện thoại: 0379 887 282. Email: kienduon757@gmail.com. Địa chỉ đầy đủ và giờ hoạt động: `[BỔ SUNG]`
+- Tên thương mại: HERO HOTEL. Người phụ trách liên hệ: Dương Đình Kiền. Điện thoại: 0379 887 282. Email: kienduon757@gmail.com. Địa chỉ đầy đủ và giờ hoạt động: `[BỔ SUNG]`
 - Danh sách tiện ích và dịch vụ đang hoạt động, giá, giờ phục vụ, cách đăng ký: `[BỔ SUNG/CẬP NHẬT TỪ HỆ THỐNG]`
 - Giờ nhận/trả phòng; phí nhận sớm/trả muộn: `[XÁC NHẬN]`
 - Đặt cọc và thời hạn thanh toán; cách xác nhận chuyển khoản: `[XÁC NHẬN]`
@@ -268,7 +268,7 @@ Ngày duyệt và người duyệt:
 
 ## 10. Bộ câu hỏi chuyên sâu theo tình huống khách sạn
 
-> Đây là bộ hỏi đáp nền đã được duyệt cho dự án LUXORA. Các chính sách chưa được cấu hình cụ thể được trả lời theo nguyên tắc an toàn: không tự cam kết, hướng người dùng tới nhân viên.
+> Đây là bộ hỏi đáp nền đã được duyệt cho dự án HERO. Các chính sách chưa được cấu hình cụ thể được trả lời theo nguyên tắc an toàn: không tự cam kết, hướng người dùng tới nhân viên.
 
 ### 10.1 Khách hàng: tư vấn trước khi đặt
 
@@ -481,18 +481,18 @@ Dùng các câu dưới đây để xác nhận AI vừa hữu ích vừa giữ 
 
 
 <!-- LUXORA_APPROVED_CUSTOMER_SOURCE_BEGIN -->
-## 12. Tài liệu tổng hợp LUXORA dành cho chatbot khách hàng
+## 12. Tài liệu tổng hợp HERO dành cho chatbot khách hàng
 
 > Nội dung dưới đây được chép đầy đủ từ bản dự thảo chủ dự án đã duyệt để chatbot tra cứu. Các mục ghi **CẦN DUYỆT**, **CẦN XÁC NHẬN** hoặc **BỔ SUNG** vẫn là nội dung chưa được xác nhận thành chính sách chính thức; không trình bày chúng như cam kết của khách sạn.
 
-# Dự thảo API, quy trình tư vấn, giá và chính sách LUXORA
+# Dự thảo API, quy trình tư vấn, giá và chính sách HERO
 
 **Trạng thái: chủ dự án đã duyệt dùng tài liệu này làm nguồn kiến thức chatbot.** Các mức giá dưới đây được đọc từ dữ liệu hiện có; những nội dung ghi **CẦN DUYỆT**, **CẦN XÁC NHẬN** hoặc **BỔ SUNG** vẫn chưa phải chính sách khách sạn chính thức.
 
 ## 1. Nguồn dữ liệu và API
 
 - Backend: `backend/src/routes/DuongDanAPI.js`; prefix API là `/api`.
-- API catalog đầy đủ (bao gồm endpoint quản trị, báo cáo, nhân sự): [`API_LUXORA.md`](API_LUXORA.md).
+- API catalog đầy đủ (bao gồm endpoint quản trị, báo cáo, nhân sự): [`API_HERO.md`](API_HERO.md).
 - Danh sách phòng/dịch vụ và giá ở bản nháp này được đọc qua API công khai của dự án. Giá có thể đổi trong phần quản trị.
 - API trả `room_type_name`/`name` theo tên đang lưu trong database; giao diện và chatbot cần hiển thị nhãn tiếng Việt đã chuẩn hóa.
 
@@ -649,7 +649,7 @@ Chưa có chính sách đã xác nhận về phí hủy, các trường hợp đ
 - **Đánh giá:** sau khi lưu trú hoàn tất, mở booking trong lịch sử và gửi đánh giá nếu giao diện cho phép.
 - **Thông báo:** mở biểu tượng chuông/thông báo để xem cập nhật.
 
-Danh sách endpoint kỹ thuật đầy đủ nằm trong [`API_LUXORA.md`](API_LUXORA.md); tài liệu API có thể gồm nhóm dành cho nhân viên/quản trị để tham khảo kỹ thuật, nhưng các quy trình chatbot trong tài liệu này chỉ dành cho khách hàng.
+Danh sách endpoint kỹ thuật đầy đủ nằm trong [`API_HERO.md`](API_HERO.md); tài liệu API có thể gồm nhóm dành cho nhân viên/quản trị để tham khảo kỹ thuật, nhưng các quy trình chatbot trong tài liệu này chỉ dành cho khách hàng.
 
 ## 5. Chính sách dự thảo cho website
 

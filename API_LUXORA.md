@@ -1,4 +1,4 @@
-# Tài liệu API và dữ liệu — LUXORA Hotel
+# Tài liệu API và dữ liệu — HERO Hotel
 
 Tài liệu này được tổng hợp từ mã nguồn hiện có, chủ yếu tại `backend/src/routes/DuongDanAPI.js`, `backend/src/MayChu.js` và `backend/src/db/CauTrucCSDL.sql`.
 

@@ -1,11 +1,11 @@
-# Dự thảo API, quy trình tư vấn, giá và chính sách LUXORA
+# Dự thảo API, quy trình tư vấn, giá và chính sách HERO
 
 **Trạng thái: chờ chủ dự án kiểm tra và xác nhận.** Đây là bản làm việc để duyệt nội dung trước khi cập nhật `DU_LIEU_HUAN_LUYEN_CHATBOT_THEO_VAI_TRO.md`. Các mức giá dưới đây được đọc từ dữ liệu hiện có; các nội dung ghi **CẦN DUYỆT** chưa được xem là chính sách khách sạn chính thức.
 
 ## 1. Nguồn dữ liệu và API
 
 - Backend: `backend/src/routes/DuongDanAPI.js`; prefix API là `/api`.
-- API catalog đầy đủ (bao gồm endpoint quản trị, báo cáo, nhân sự): [`API_LUXORA.md`](API_LUXORA.md).
+- API catalog đầy đủ (bao gồm endpoint quản trị, báo cáo, nhân sự): [`API_HERO.md`](API_HERO.md).
 - Danh sách phòng/dịch vụ và giá ở bản nháp này được đọc qua API công khai của dự án. Giá có thể đổi trong phần quản trị.
 - API trả `room_type_name`/`name` theo tên đang lưu trong database; giao diện và chatbot cần hiển thị nhãn tiếng Việt đã chuẩn hóa.
 
@@ -162,7 +162,7 @@ Chưa có chính sách đã xác nhận về phí hủy, các trường hợp đ
 - **Đánh giá:** sau khi lưu trú hoàn tất, mở booking trong lịch sử và gửi đánh giá nếu giao diện cho phép.
 - **Thông báo:** mở biểu tượng chuông/thông báo để xem cập nhật.
 
-Danh sách endpoint kỹ thuật đầy đủ nằm trong [`API_LUXORA.md`](API_LUXORA.md); tài liệu API có thể gồm nhóm dành cho nhân viên/quản trị để tham khảo kỹ thuật, nhưng các quy trình chatbot trong tài liệu này chỉ dành cho khách hàng.
+Danh sách endpoint kỹ thuật đầy đủ nằm trong [`API_HERO.md`](API_HERO.md); tài liệu API có thể gồm nhóm dành cho nhân viên/quản trị để tham khảo kỹ thuật, nhưng các quy trình chatbot trong tài liệu này chỉ dành cho khách hàng.
 
 ## 5. Chính sách dự thảo cho website
 

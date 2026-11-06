@@ -25,14 +25,14 @@ export default function ResetPassword(){
   }
 
   if(!token){
-    return <div className="auth-page"><div className="auth-art"><div><span className="eyebrow">LUXORA HOTEL</span><h1>Liên kết<br/><em>không hợp lệ.</em></h1></div></div>
+    return <div className="auth-page"><div className="auth-art"><div><span className="eyebrow">HERO HOTEL</span><h1>Liên kết<br/><em>không hợp lệ.</em></h1></div></div>
       <div className="auth-box"><span className="eyebrow">RESET PASSWORD</span><h2>Thiếu token</h2>
       <p>Liên kết đặt lại mật khẩu không hợp lệ. Vui lòng mở lại liên kết trong thư điện tử, hoặc yêu cầu gửi lại.</p>
       <div className="auth-links"><Link to="/forgot-password">Gửi lại thư điện tử đặt lại mật khẩu</Link></div></div></div>;
   }
 
   return <div className="auth-page">
-    <div className="auth-art"><div><span className="eyebrow">LUXORA HOTEL</span><h1>Đặt mật khẩu<br/><em>mới.</em></h1></div></div>
+    <div className="auth-art"><div><span className="eyebrow">HERO HOTEL</span><h1>Đặt mật khẩu<br/><em>mới.</em></h1></div></div>
     <div className="auth-box">
       <span className="eyebrow">RESET PASSWORD</span>
       <h2>Đặt lại mật khẩu</h2>

@@ -1,4 +1,4 @@
-# LUXORA HOTEL — Full Stack Booking & Hotel Management
+# HERO HOTEL — Full Stack Booking & Hotel Management
 
 Bộ source đồ án theo tài liệu yêu cầu:
 - React + Vite + JavaScript + CSS

@@ -133,7 +133,7 @@ router.get('/availability/calendar',async(req,res,next)=>{
 });
 
 
-// Trợ lý LUXORA: AI chỉ gọi các công cụ đọc dữ liệu được backend cho phép theo vai trò.
+// Trợ lý HERO: AI chỉ gọi các công cụ đọc dữ liệu được backend cho phép theo vai trò.
 router.get('/chatbot/status',(_req,res)=>res.json({aiEnabled:Boolean(process.env.OPENAI_API_KEY)}));
 
 router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
@@ -352,7 +352,7 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
       const suggestions=roomTypes.map(room=>({name:room.name,description:room.description||'',capacity:Number(room.capacity),price:Number(room.base_price),roomCount:Number(room.room_count),amenities:room.amenities||[]}));
       const totalRooms=roomTypes.reduce((sum,room)=>sum+Number(room.room_count),0);
       const answer=roomTypes.length
-        ? `LUXORA hiện có ${totalRooms} phòng thuộc ${roomTypes.length} loại phòng. Mình gửi thông tin sức chứa, giá cơ bản và mô tả các loại phòng đang có bên dưới nhé.`
+        ? `HERO hiện có ${totalRooms} phòng thuộc ${roomTypes.length} loại phòng. Mình gửi thông tin sức chứa, giá cơ bản và mô tả các loại phòng đang có bên dưới nhé.`
         : 'Hiện hệ thống chưa có loại phòng nào được khai báo. Bạn vui lòng liên hệ lễ tân để được hỗ trợ.';
       return res.json({answer,suggestions,aiEnabled:false});
     }
@@ -369,7 +369,7 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     }
     // Chế độ không tính phí API: dùng câu trả lời đã duyệt trong file kiến thức và dữ liệu hệ thống.
     const q=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    if(/lien he|so dien thoai|dien thoai|hotline|email|gmail|contact/.test(q)) return res.json({answer:'Thông tin liên hệ LUXORA HOTEL:\nNgười phụ trách: Dương Đình Kiền\nĐiện thoại: 0379 887 282\nEmail: kienduon757@gmail.com',suggestions:[],aiEnabled:false});
+    if(/lien he|so dien thoai|dien thoai|hotline|email|gmail|contact/.test(q)) return res.json({answer:'Thông tin liên hệ HERO HOTEL:\nNgười phụ trách: Dương Đình Kiền\nĐiện thoại: 0379 887 282\nEmail: kienduon757@gmail.com',suggestions:[],aiEnabled:false});
     if(/con phong|phong trong|phong nao|ngay nhan|ngay tra|dat phong tu|tu ngay/.test(q)){
       return res.json({answer:'Mình chưa có đủ thông tin để xác nhận phòng còn trống. Bạn gửi ngày nhận, ngày trả và số khách nhé; nếu đặt nhiều phòng, hãy cho mình biết số khách ở từng phòng. Mình cũng có thể hỗ trợ thông tin chung về phòng, dịch vụ và giờ nhận/trả phòng. Nếu cần kiểm tra ngay, bạn có thể liên hệ lễ tân.',suggestions:[],aiEnabled:false});
     }
@@ -377,16 +377,16 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     const guestCount=nums[0]||null;
     const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
     const rooms=(await pool.query(`SELECT rt.id,rt.name,rt.capacity,rt.base_price,rt.description,rt.amenities FROM room_types rt ORDER BY rt.base_price`)).rows;
-    if(/dich vu|giat|an sang|spa/.test(q)) return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({name:s.name,description:s.description||'',price:Number(s.price)})),aiEnabled:false});
+    if(/dich vu|giat|an sang|spa/.test(q)) return res.json({answer:services.length?'HERO hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({name:s.name,description:s.description||'',price:Number(s.price)})),aiEnabled:false});
     if(/dat phong|lam sao dat|cach dat|quy trinh dat/.test(q)) return res.json({answer:'Bạn chọn ngày nhận phòng, ngày trả phòng và số khách ở phần tìm phòng; chọn phòng phù hợp, đăng nhập hoặc tạo tài khoản rồi làm theo các bước xác nhận trên màn hình. Nếu muốn mình kiểm tra phòng, hãy gửi ngày nhận, ngày trả và số khách.',suggestions:[],aiEnabled:false});
     if(/hoa don|xem booking|booking cua toi|phong cua toi/.test(q)) return res.json({answer:'Bạn đăng nhập bằng tài khoản đã đặt phòng, rồi mở mục Phòng của tôi hoặc Hóa đơn để xem booking và các khoản thanh toán.',suggestions:[],aiEnabled:false});
     if(/thanh toan|chuyen khoan|tien coc|dat coc/.test(q)) return res.json({answer:'Khoản chuyển khoản cần được nhân viên xác minh trên hệ thống trước khi booking được xác nhận. Bạn có thể xem trạng thái trong tài khoản; nếu chưa cập nhật, vui lòng liên hệ lễ tân và cung cấp mã booking.',suggestions:[],aiEnabled:false});
     if(/hoan tien|huy phong|huy booking/.test(q)) return res.json({answer:'Bạn mở booking trong tài khoản và gửi yêu cầu hủy/hoàn tiền nếu hệ thống có tùy chọn. Nhân viên có thẩm quyền sẽ xem xét; chatbot chưa thể xác nhận điều kiện hay thời gian hoàn tiền nếu chưa có chính sách chính thức.',suggestions:[],aiEnabled:false});
     if(/quen mat khau|dat lai mat khau/.test(q)) return res.json({answer:'Ở màn hình đăng nhập, chọn Quên mật khẩu và làm theo hướng dẫn gửi tới email đăng ký. Không chia sẻ liên kết đặt lại mật khẩu với người khác.',suggestions:[],aiEnabled:false});
-    if(/nhan phong|tra phong|check.?in|check.?out/.test(q)) return res.json({answer:'LUXORA nhận phòng từ 14:00 và trả phòng tối đa lúc 12:00.',suggestions:[],aiEnabled:false});
+    if(/nhan phong|tra phong|check.?in|check.?out/.test(q)) return res.json({answer:'HERO nhận phòng từ 14:00 và trả phòng tối đa lúc 12:00.',suggestions:[],aiEnabled:false});
     const candidates=rooms.filter(r=>!guestCount||Number(r.capacity)>=guestCount);
     if(/phong|gia|nguoi|khach|suc chua/.test(q)) return res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể kết nối trợ lý AI lúc này. Vui lòng thử lại sau.':(guestCount?`Với ${guestCount} khách, đây là các loại phòng đủ sức chứa theo dữ liệu hiện có:`:'Đây là các loại phòng và giá cơ bản hiện có:') ,suggestions:candidates.slice(0,8).map(r=>({name:r.name,capacity:Number(r.capacity),price:Number(r.base_price),description:r.description||'',amenities:r.amenities||[]})),aiEnabled:false});
-    res.json({answer:'Mình là trợ lý tư vấn tạm thời của LUXORA. Mình có thể hỗ trợ thông tin phòng, sức chứa, giá cơ bản, dịch vụ, giờ nhận/trả phòng và hướng dẫn đặt phòng. Nếu câu hỏi cần chính sách riêng hoặc cần nhân viên kiểm tra, bạn vui lòng liên hệ lễ tân: 0379 887 282 hoặc kienduon757@gmail.com.',suggestions:[],aiEnabled:false});
+    res.json({answer:'Mình là trợ lý tư vấn tạm thời của HERO. Mình có thể hỗ trợ thông tin phòng, sức chứa, giá cơ bản, dịch vụ, giờ nhận/trả phòng và hướng dẫn đặt phòng. Nếu câu hỏi cần chính sách riêng hoặc cần nhân viên kiểm tra, bạn vui lòng liên hệ lễ tân: 0379 887 282 hoặc kienduon757@gmail.com.',suggestions:[],aiEnabled:false});
   }catch(e){next(e)}
 });
 
@@ -405,8 +405,8 @@ async function sendDepositConfirmationEmail(bookingId){
   if(!b||!b.email) return;
   const remaining=Math.max(Number(b.room_price)-Number(b.deposit_amount),0);
   const qr=await QRCode.toDataURL(JSON.stringify({bookingCode:b.booking_code,roomNumber:b.room_number,roomType:b.room_type_name}));
-  const html=`<!doctype html><html><body style="margin:0;background:#f3efe7;font-family:Arial,sans-serif;color:#18212b"><div style="max-width:720px;margin:24px auto;background:#fff;border:1px solid #e4ddcf"><div style="padding:28px 32px;background:#18212b;color:#fff"><div style="font-size:11px;letter-spacing:4px;color:#d4b47a">LUXORA HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:400;margin:12px 0 4px">XÁC NHẬN ĐẶT CỌC</h1><div style="font-size:13px;opacity:.8">Booking đã được xác nhận</div></div><div style="padding:30px 32px"><div style="background:#f7f3ea;border:1px solid #e4ddcf;padding:18px 20px;text-align:center;margin-bottom:24px"><div style="font-size:11px;letter-spacing:2px;color:#8b7658">MÃ BOOKING</div><div style="font-size:28px;font-weight:700;letter-spacing:1px;margin-top:7px">${escapeHtml(b.booking_code)}</div></div><p>Xin chào <b>${escapeHtml(b.full_name||'Quý khách')}</b>, cảm ơn bạn đã đặt phòng tại LUXORA HOTEL. Dưới đây là thông tin xác nhận:</p><table width="100%" cellpadding="7" cellspacing="0" style="border-collapse:collapse"><tr><td>Mã booking</td><td><b>${escapeHtml(b.booking_code)}</b></td></tr><tr><td>Khách hàng</td><td>${escapeHtml(b.full_name||'—')} · ${escapeHtml(b.customer_phone||b.phone||'—')}</td></tr><tr><td>Phòng</td><td>Phòng ${escapeHtml(b.room_number)} — ${escapeHtml(roomTypeLabel(b.room_type_name))}</td></tr><tr><td>Ngày giờ nhận phòng</td><td>${vnDate(b.check_in)}</td></tr><tr><td>Ngày giờ trả phòng</td><td>${vnDate(b.check_out)}</td></tr><tr><td>Giá phòng / Tổng tiền tạm tính</td><td>${vnd(b.room_price)}</td></tr><tr><td>Tiền cọc đã thanh toán</td><td><b>${vnd(b.deposit_amount)}</b></td></tr><tr><td>Số tiền còn lại</td><td>${vnd(remaining)}</td></tr><tr><td>Trạng thái thanh toán</td><td><b>Đã đặt cọc — Booking đã được xác nhận</b></td></tr></table><p style="font-size:12px;color:#777;margin-top:28px">Cảm ơn bạn đã lựa chọn LUXORA HOTEL. Đây là email tự động, vui lòng không trả lời email này.</p><div style="margin-top:28px;padding:22px 18px;background:#f7f3ea;border:1px solid #e4ddcf;text-align:center"><div style="font-size:10px;letter-spacing:2px;color:#8b7658">MÃ QR BOOKING</div><div style="font-weight:700;margin:7px 0 14px">Xuất trình mã QR này khi nhận phòng</div><img src="cid:booking-qr@luxora.hotel" alt="Mã QR booking" width="190" height="190" style="display:block;margin:auto"/><div style="font-size:12px;color:#666;margin-top:10px">Booking: <b>${escapeHtml(b.booking_code)}</b> · Phòng <b>${escapeHtml(b.room_number)}</b></div></div></div></div></body></html>`;
-  return sendMail({to:b.email,subject:`LUXORA — Xác nhận đặt cọc ${b.booking_code}`,html,attachments:[qrMailAttachment(qr)]});
+  const html=`<!doctype html><html><body style="margin:0;background:#f3efe7;font-family:Arial,sans-serif;color:#18212b"><div style="max-width:720px;margin:24px auto;background:#fff;border:1px solid #e4ddcf"><div style="padding:28px 32px;background:#18212b;color:#fff"><div style="font-size:11px;letter-spacing:4px;color:#d4b47a">HERO HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:400;margin:12px 0 4px">XÁC NHẬN ĐẶT CỌC</h1><div style="font-size:13px;opacity:.8">Booking đã được xác nhận</div></div><div style="padding:30px 32px"><div style="background:#f7f3ea;border:1px solid #e4ddcf;padding:18px 20px;text-align:center;margin-bottom:24px"><div style="font-size:11px;letter-spacing:2px;color:#8b7658">MÃ BOOKING</div><div style="font-size:28px;font-weight:700;letter-spacing:1px;margin-top:7px">${escapeHtml(b.booking_code)}</div></div><p>Xin chào <b>${escapeHtml(b.full_name||'Quý khách')}</b>, cảm ơn bạn đã đặt phòng tại HERO HOTEL. Dưới đây là thông tin xác nhận:</p><table width="100%" cellpadding="7" cellspacing="0" style="border-collapse:collapse"><tr><td>Mã booking</td><td><b>${escapeHtml(b.booking_code)}</b></td></tr><tr><td>Khách hàng</td><td>${escapeHtml(b.full_name||'—')} · ${escapeHtml(b.customer_phone||b.phone||'—')}</td></tr><tr><td>Phòng</td><td>Phòng ${escapeHtml(b.room_number)} — ${escapeHtml(roomTypeLabel(b.room_type_name))}</td></tr><tr><td>Ngày giờ nhận phòng</td><td>${vnDate(b.check_in)}</td></tr><tr><td>Ngày giờ trả phòng</td><td>${vnDate(b.check_out)}</td></tr><tr><td>Giá phòng / Tổng tiền tạm tính</td><td>${vnd(b.room_price)}</td></tr><tr><td>Tiền cọc đã thanh toán</td><td><b>${vnd(b.deposit_amount)}</b></td></tr><tr><td>Số tiền còn lại</td><td>${vnd(remaining)}</td></tr><tr><td>Trạng thái thanh toán</td><td><b>Đã đặt cọc — Booking đã được xác nhận</b></td></tr></table><p style="font-size:12px;color:#777;margin-top:28px">Cảm ơn bạn đã lựa chọn HERO HOTEL. Đây là email tự động, vui lòng không trả lời email này.</p><div style="margin-top:28px;padding:22px 18px;background:#f7f3ea;border:1px solid #e4ddcf;text-align:center"><div style="font-size:10px;letter-spacing:2px;color:#8b7658">MÃ QR BOOKING</div><div style="font-weight:700;margin:7px 0 14px">Xuất trình mã QR này khi nhận phòng</div><img src="cid:booking-qr@luxora.hotel" alt="Mã QR booking" width="190" height="190" style="display:block;margin:auto"/><div style="font-size:12px;color:#666;margin-top:10px">Booking: <b>${escapeHtml(b.booking_code)}</b> · Phòng <b>${escapeHtml(b.room_number)}</b></div></div></div></div></body></html>`;
+  return sendMail({to:b.email,subject:`HERO — Xác nhận đặt cọc ${b.booking_code}`,html,attachments:[qrMailAttachment(qr)]});
 }
 
 
@@ -435,13 +435,13 @@ async function sendInvoiceEmail(bookingId, {subjectPrefix='Hóa đơn'}={}){
   const serviceRows=services.length ? services.map(x=>`<tr><td>${escapeHtml(x.name)} × ${x.quantity}</td><td style="text-align:right">${vnd(Number(x.quantity)*Number(x.unit_price))}</td></tr>`).join('') : `<tr><td colspan="2" style="color:#777">Không có dịch vụ phát sinh</td></tr>`;
   const paymentRows=payments.length ? payments.map(x=>`<tr><td><b>${paymentTypeLabel(x.type)}</b><br><span style="color:#777;font-size:12px">${paymentProviderLabel(x.provider)}</span></td><td style="text-align:right"><b>${vnd(x.amount)}</b><br><span style="color:#777;font-size:12px">${paymentStatusLabel(x.status)}</span></td></tr>`).join('') : `<tr><td colspan="2" style="color:#777">Chưa có giao dịch thanh toán</td></tr>`;
   const qr=await QRCode.toDataURL(JSON.stringify({bookingCode:b.booking_code,roomNumber:b.room_number,roomType:b.room_type_name}));
-  const html=`<!doctype html><html><body style="margin:0;background:#f3efe7;font-family:Arial,sans-serif;color:#18212b"><div style="max-width:720px;margin:24px auto;background:#fff;border:1px solid #e4ddcf"><div style="padding:28px 32px;background:#18212b;color:#fff"><div style="font-size:11px;letter-spacing:4px;color:#d4b47a">LUXORA HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:400;margin:12px 0 4px">HÓA ĐƠN / RECEIPT</h1><div style="font-size:13px;opacity:.8">${escapeHtml(b.booking_code)} · ${escapeHtml(subjectPrefix)}</div></div><div style="padding:30px 32px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td><b>${escapeHtml(b.full_name||'Quý khách')}</b><br>${escapeHtml(b.email)}<br>${escapeHtml(b.customer_phone||b.phone||'')}</td><td style="text-align:right">Phòng <b>${escapeHtml(b.room_number)}</b><br>${escapeHtml(roomTypeLabel(b.room_type_name))}<br>${vnDate(b.check_in)} → ${vnDate(b.check_out)}</td></tr></table><hr style="border:0;border-top:1px solid #e5dfd2;margin:24px 0"><table width="100%" cellpadding="8" cellspacing="0"><tr><td>Giá phòng</td><td style="text-align:right">${vnd(totals.roomTotal)}</td></tr>${serviceRows}${totals.surcharge>0?`<tr><td>Phụ phí</td><td style="text-align:right">${vnd(totals.surcharge)}</td></tr>`:''}<tr style="font-size:16px"><td><b>TỔNG CỘNG</b></td><td style="text-align:right"><b>${vnd(totals.grandTotal)}</b></td></tr><tr><td>Đã thanh toán / tiền cọc</td><td style="text-align:right">${vnd(totals.depositTotal)}</td></tr><tr><td><b>Còn phải trả</b></td><td style="text-align:right"><b>${vnd(totals.remainingTotal)}</b></td></tr></table><h3 style="font-family:Georgia,serif;font-weight:500;margin-top:28px">Lịch sử thanh toán</h3><table width="100%" cellpadding="7" cellspacing="0" style="font-size:13px">${paymentRows}</table><p style="font-size:12px;color:#777;margin-top:28px">Cảm ơn bạn đã lựa chọn LUXORA HOTEL. Đây là email tự động, vui lòng không trả lời email này.</p><div style="margin-top:28px;padding:22px 18px;background:#f7f3ea;border:1px solid #e4ddcf;text-align:center"><div style="font-size:10px;letter-spacing:2px;color:#8b7658">MÃ QR BOOKING</div><div style="font-weight:700;margin:7px 0 14px">Xuất trình mã QR này khi nhận phòng</div><img src="cid:booking-qr@luxora.hotel" width="190" height="190" alt="Mã QR booking" style="display:block;margin:auto"><div style="font-size:12px;color:#666;margin-top:10px">Booking: <b>${escapeHtml(b.booking_code)}</b> · Phòng <b>${escapeHtml(b.room_number)}</b></div></div></div></div></body></html>`;
-  return sendMail({to:b.email,subject:`LUXORA — ${subjectPrefix} ${b.booking_code}`,html,attachments:[qrMailAttachment(qr)]});
+  const html=`<!doctype html><html><body style="margin:0;background:#f3efe7;font-family:Arial,sans-serif;color:#18212b"><div style="max-width:720px;margin:24px auto;background:#fff;border:1px solid #e4ddcf"><div style="padding:28px 32px;background:#18212b;color:#fff"><div style="font-size:11px;letter-spacing:4px;color:#d4b47a">HERO HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:400;margin:12px 0 4px">HÓA ĐƠN / RECEIPT</h1><div style="font-size:13px;opacity:.8">${escapeHtml(b.booking_code)} · ${escapeHtml(subjectPrefix)}</div></div><div style="padding:30px 32px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td><b>${escapeHtml(b.full_name||'Quý khách')}</b><br>${escapeHtml(b.email)}<br>${escapeHtml(b.customer_phone||b.phone||'')}</td><td style="text-align:right">Phòng <b>${escapeHtml(b.room_number)}</b><br>${escapeHtml(roomTypeLabel(b.room_type_name))}<br>${vnDate(b.check_in)} → ${vnDate(b.check_out)}</td></tr></table><hr style="border:0;border-top:1px solid #e5dfd2;margin:24px 0"><table width="100%" cellpadding="8" cellspacing="0"><tr><td>Giá phòng</td><td style="text-align:right">${vnd(totals.roomTotal)}</td></tr>${serviceRows}${totals.surcharge>0?`<tr><td>Phụ phí</td><td style="text-align:right">${vnd(totals.surcharge)}</td></tr>`:''}<tr style="font-size:16px"><td><b>TỔNG CỘNG</b></td><td style="text-align:right"><b>${vnd(totals.grandTotal)}</b></td></tr><tr><td>Đã thanh toán / tiền cọc</td><td style="text-align:right">${vnd(totals.depositTotal)}</td></tr><tr><td><b>Còn phải trả</b></td><td style="text-align:right"><b>${vnd(totals.remainingTotal)}</b></td></tr></table><h3 style="font-family:Georgia,serif;font-weight:500;margin-top:28px">Lịch sử thanh toán</h3><table width="100%" cellpadding="7" cellspacing="0" style="font-size:13px">${paymentRows}</table><p style="font-size:12px;color:#777;margin-top:28px">Cảm ơn bạn đã lựa chọn HERO HOTEL. Đây là email tự động, vui lòng không trả lời email này.</p><div style="margin-top:28px;padding:22px 18px;background:#f7f3ea;border:1px solid #e4ddcf;text-align:center"><div style="font-size:10px;letter-spacing:2px;color:#8b7658">MÃ QR BOOKING</div><div style="font-weight:700;margin:7px 0 14px">Xuất trình mã QR này khi nhận phòng</div><img src="cid:booking-qr@luxora.hotel" width="190" height="190" alt="Mã QR booking" style="display:block;margin:auto"><div style="font-size:12px;color:#666;margin-top:10px">Booking: <b>${escapeHtml(b.booking_code)}</b> · Phòng <b>${escapeHtml(b.room_number)}</b></div></div></div></div></body></html>`;
+  return sendMail({to:b.email,subject:`HERO — ${subjectPrefix} ${b.booking_code}`,html,attachments:[qrMailAttachment(qr)]});
 }
 
 async function sendWelcomeEmail(user){
   if(!user?.email) return;
-  return sendMail({to:user.email,subject:'LUXORA HOTEL — Chào mừng bạn',html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:32px;background:#f7f3ea;color:#18212b"><div style="background:#fff;padding:30px;border:1px solid #e5dfd2"><div style="letter-spacing:3px;font-size:11px;color:#b08d57">LUXORA HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:500">Chào mừng ${escapeHtml(user.full_name||'bạn')}.</h1><p>Tài khoản của bạn đã được tạo thành công với email <b>${escapeHtml(user.email)}</b>.</p><p>Bạn có thể đăng nhập để đặt phòng, theo dõi booking và nhận hóa đơn điện tử.</p><a href="${process.env.CLIENT_URL||'http://localhost:5173'}" style="display:inline-block;padding:13px 20px;background:#18212b;color:#fff;text-decoration:none">Mở LUXORA</a></div></div>`});
+  return sendMail({to:user.email,subject:'HERO HOTEL — Chào mừng bạn',html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:32px;background:#f7f3ea;color:#18212b"><div style="background:#fff;padding:30px;border:1px solid #e5dfd2"><div style="letter-spacing:3px;font-size:11px;color:#b08d57">HERO HOTEL</div><h1 style="font-family:Georgia,serif;font-weight:500">Chào mừng ${escapeHtml(user.full_name||'bạn')}.</h1><p>Tài khoản của bạn đã được tạo thành công với email <b>${escapeHtml(user.email)}</b>.</p><p>Bạn có thể đăng nhập để đặt phòng, theo dõi booking và nhận hóa đơn điện tử.</p><a href="${process.env.CLIENT_URL||'http://localhost:5173'}" style="display:inline-block;padding:13px 20px;background:#18212b;color:#fff;text-decoration:none">Mở HERO</a></div></div>`});
 }
 
 router.post('/auth/register',authLimiter,async(req,res,next)=>{
@@ -504,7 +504,7 @@ router.post('/auth/forgot-password',authLimiter,async(req,res,next)=>{
       await pool.query(`INSERT INTO password_reset_tokens(user_id,token_hash,expires_at) VALUES($1,$2,NOW()+INTERVAL '30 minutes')`,
         [u.id,sha256(raw)]);
       const link=`${process.env.CLIENT_URL}/reset-password?token=${raw}`;
-      await sendMail({to:u.email,subject:'LUXORA — Đặt lại mật khẩu',html:`<p>Bạn đã yêu cầu đặt lại mật khẩu.</p><p><a href="${link}">Đặt lại mật khẩu</a></p><p>Link có hiệu lực 30 phút và chỉ dùng một lần.</p>`});
+      await sendMail({to:u.email,subject:'HERO — Đặt lại mật khẩu',html:`<p>Bạn đã yêu cầu đặt lại mật khẩu.</p><p><a href="${link}">Đặt lại mật khẩu</a></p><p>Link có hiệu lực 30 phút và chỉ dùng một lần.</p>`});
     }
     res.json({message:'Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi.'});
   }catch(e){next(e)}
@@ -723,14 +723,14 @@ router.post('/bookings',auth,async(req,res,next)=>{
       requestedServiceIds.add(String(item.serviceId));
     }
     if(Number.isNaN(inDate.getTime())||Number.isNaN(outDate.getTime())||inDate>=outDate) return res.status(400).json({message:'Ngày giờ trả phòng phải sau ngày giờ nhận phòng'});
-    // Quy định LUXORA: nhận phòng lúc 14:00, trả phòng tối đa 12:00. Số đêm quyết định ngày checkout.
+    // Quy định HERO: nhận phòng lúc 14:00, trả phòng tối đa 12:00. Số đêm quyết định ngày checkout.
     const inText=String(checkIn), outText=String(checkOut);
     const inTime=inText.match(/T(\d{2}):(\d{2})/), outTime=outText.match(/T(\d{2}):(\d{2})/);
     if(!inTime||!outTime||inTime[1]!=='14'||inTime[2]!=='00'||outTime[1]!=='12'||outTime[2]!=='00') return res.status(400).json({message:'Giờ nhận phòng cố định 14:00 và giờ trả phòng tối đa 12:00.'});
     if(inDate<new Date()) return res.status(400).json({message:'Ngày nhận phòng không được ở trong quá khứ'});
     const guestCount=Number(guests);
     if(!Number.isInteger(guestCount)||guestCount<1||guestCount>20) return res.status(400).json({message:'Số khách phải từ 1 đến 20'});
-    // LUXORA: tiền cọc cố định 10% tổng tiền phòng sau giảm giá.
+    // HERO: tiền cọc cố định 10% tổng tiền phòng sau giảm giá.
     const requestedDeposit=Number(depositAmount);
     if(!Number.isFinite(requestedDeposit)||requestedDeposit<0) return res.status(400).json({message:'Tiền cọc không hợp lệ'});
     const nights=Math.ceil((outDate-inDate)/(24*60*60*1000));
@@ -920,7 +920,7 @@ router.get('/bookings/:code/vietqr',auth,async(req,res,next)=>{
       b.payment_expires_at=hold.expiresAt||b.payment_expires_at;
     }
     const settings=(await pool.query(`SELECT bank_code,bank_account,bank_account_name FROM hotel_settings WHERE id=true`)).rows[0]||{};
-    const bankCode=settings.bank_code||process.env.BANK_CODE||'VCB',account=settings.bank_account||process.env.BANK_ACCOUNT||'',name=settings.bank_account_name||process.env.BANK_ACCOUNT_NAME||'LUXORA HOTEL';
+    const bankCode=settings.bank_code||process.env.BANK_CODE||'VCB',account=settings.bank_account||process.env.BANK_ACCOUNT||'',name=settings.bank_account_name||process.env.BANK_ACCOUNT_NAME||'HERO HOTEL';
     if(!account) return res.status(400).json({message:'Khách sạn chưa cấu hình số tài khoản nhận chuyển khoản. Vui lòng liên hệ quản trị viên.'});
     let amount=Math.round(Number(b.deposit_amount));
     let paymentLabel='DAT COC';
@@ -1848,7 +1848,7 @@ router.patch('/admin/operation-settings',auth,roles('ADMIN','MANAGER'),async(req
 router.get('/admin/payment-settings',auth,roles('ADMIN','MANAGER'),async(req,res,next)=>{
   try{
     const r=await pool.query(`SELECT bank_code,bank_account,bank_account_name,hotel_email,updated_at FROM hotel_settings WHERE id=true`);
-    res.json(r.rows[0]||{bank_code:'VCB',bank_account:'',bank_account_name:'LUXORA HOTEL',hotel_email:''});
+    res.json(r.rows[0]||{bank_code:'VCB',bank_account:'',bank_account_name:'HERO HOTEL',hotel_email:''});
   }catch(e){next(e)}
 });
 router.patch('/admin/payment-settings',auth,roles('ADMIN','MANAGER'),async(req,res,next)=>{
@@ -2152,7 +2152,7 @@ router.get('/admin/reports/export.xls',auth,roles('ADMIN','MANAGER'),async(req,r
       excelSheet('Check-in out',['Mã booking','Khách hàng','Phòng','Nhận phòng dự kiến','Giờ check-in thực tế','Trả phòng dự kiến','Giờ check-out thực tế','Trạng thái'],d.checkinOut.map(x=>[x.booking_code,x.customer||'',x.room_number||'',x.check_in||'',x.actual_check_in||'',x.check_out||'',x.actual_check_out||'',x.status||''])),
       excelSheet('Lương '+month,['Nhân viên','Email','Vai trò','Ngân hàng','Số tài khoản','Chủ tài khoản','Ngày công','Tổng giờ','Mức công/ngày','Lương','Trạng thái','Ngày trả','Ghi chú'],d.payroll.map(x=>[x.full_name,x.email,x.role,x.bank_code||'',x.bank_account||'',x.account_name||'',Number(x.work_days||0),Number(x.total_hours||0),Number(x.daily_rate||0),Number(x.gross_amount||0),x.payment_status,x.paid_at||'',x.payment_note||'']))
     ];
-    xlsResponse(res,`LUXORA-Bao-cao-${month}.xls`,excelWorkbook(sheets));
+    xlsResponse(res,`HERO-Bao-cao-${month}.xls`,excelWorkbook(sheets));
   }catch(e){next(e)}
 });
 
@@ -2161,7 +2161,7 @@ router.get('/admin/reports/attendance.xls',auth,roles('ADMIN','MANAGER'),async(r
     const month=/^\d{4}-\d{2}$/.test(String(req.query.month||''))?String(req.query.month):new Date().toISOString().slice(0,7);
     const d=await getReportWorkbookData(month);
     const xml=excelWorkbook([excelSheet('Chấm công',['Ngày','Nhân viên','Email','Vai trò','Giờ vào','Giờ ra','Tổng giờ','Ghi chú'],d.attendance.map(x=>[x.work_date,x.full_name,x.email,x.role,x.clock_in||'',x.clock_out||'',Number(x.total_hours||0),x.note||'']))]);
-    xlsResponse(res,`LUXORA-Cham-cong-${month}.xls`,xml);
+    xlsResponse(res,`HERO-Cham-cong-${month}.xls`,xml);
   }catch(e){next(e)}
 });
 
@@ -2170,7 +2170,7 @@ router.get('/admin/reports/checkin-out.xls',auth,roles('ADMIN','MANAGER'),async(
     const month=/^\d{4}-\d{2}$/.test(String(req.query.month||''))?String(req.query.month):new Date().toISOString().slice(0,7);
     const d=await getReportWorkbookData(month);
     const xml=excelWorkbook([excelSheet('Check-in out',['Mã booking','Khách hàng','Phòng','Nhận phòng dự kiến','Giờ check-in thực tế','Trả phòng dự kiến','Giờ check-out thực tế','Trạng thái'],d.checkinOut.map(x=>[x.booking_code,x.customer||'',x.room_number||'',x.check_in||'',x.actual_check_in||'',x.check_out||'',x.actual_check_out||'',x.status||'']))]);
-    xlsResponse(res,`LUXORA-Checkin-Checkout-${month}.xls`,xml);
+    xlsResponse(res,`HERO-Checkin-Checkout-${month}.xls`,xml);
   }catch(e){next(e)}
 });
 
@@ -2278,7 +2278,7 @@ router.get('/admin/reports/cash-payments.xls',auth,roles('ADMIN','MANAGER'),asyn
       ORDER BY p.paid_at DESC`,[month]);
     const rows=r.rows.map(x=>[x.paid_at,x.booking_code,x.room_number||'',x.customer||'',x.receptionist||'',x.type,Number(x.amount),x.status]);
     rows.push(['TỔNG CỘNG','','','','','',r.rows.reduce((sum,x)=>sum+Number(x.amount||0),0),'Số giao dịch: '+r.rows.length]);
-    xlsResponse(res,`LUXORA-Tien-mat-${month}.xls`,excelWorkbook([excelSheet('Thu tiền mặt',['Thời gian xác nhận','Mã booking','Phòng','Khách hàng','Lễ tân xác nhận','Loại thanh toán','Số tiền','Trạng thái'],rows)]));
+    xlsResponse(res,`HERO-Tien-mat-${month}.xls`,excelWorkbook([excelSheet('Thu tiền mặt',['Thời gian xác nhận','Mã booking','Phòng','Khách hàng','Lễ tân xác nhận','Loại thanh toán','Số tiền','Trạng thái'],rows)]));
   }catch(e){next(e)}
 });
 

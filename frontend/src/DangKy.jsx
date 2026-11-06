@@ -30,7 +30,7 @@ export default function Register({onLogin}){
 
   return <div className="auth-page auth-page-card">
     <div className="auth-box auth-card auth-card-register">
-      <div className="auth-card-image"><img src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1000&q=85" alt="Phòng nghỉ LUXORA HOTEL"/><div className="auth-card-brand"><span className="brand-mark">L</span><span>LUXORA <i>HOTEL</i></span></div></div>
+      <div className="auth-card-image"><img src="https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1000&q=85" alt="Phòng nghỉ HERO HOTEL"/><div className="auth-card-brand"><span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span></div></div>
       <div className="auth-card-content">
         <span className="eyebrow">CHÀO MỪNG BẠN</span>
         <h2>Đăng ký</h2>
