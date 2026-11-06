@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, money, date, bookingStatusLabel, roleLabel, paymentTypeLabel, paymentStatusLabel, roomTypeLabel } from './KetNoiAPI';
+import { api, money, date, bookingStatusLabel, roleLabel, paymentTypeLabel, paymentStatusLabel, roomTypeLabel, serviceDisplay } from './KetNoiAPI';
 
 function ReviewBox({ booking, onDone }) {
   const [rating, setRating] = useState(5);
@@ -69,7 +69,7 @@ function ServicesTab({ bookings }) {
   useEffect(() => { if (!bookingCode && activeBookings[0]) setBookingCode(activeBookings[0].booking_code); }, [activeBookings.length]);
   async function add(service) {
     if (!bookingCode) { setMsg('Bạn chưa có đặt phòng đang hoạt động để gắn dịch vụ.'); return; }
-    try { const n=Number(qty[service.id]||1); await api(`/bookings/${bookingCode}/services`,{method:'POST',body:JSON.stringify({serviceId:service.id,quantity:n})}); setMsg(`Đã đăng ký ${service.name} cho đặt phòng ${bookingCode}. Dịch vụ sẽ được tính vào hóa đơn sau khi Lễ tân check-in.`); }
+    try { const n=Number(qty[service.id]||1); await api(`/bookings/${bookingCode}/services`,{method:'POST',body:JSON.stringify({serviceId:service.id,quantity:n})}); setMsg(`Đã đăng ký ${serviceDisplay(service).name} cho đặt phòng ${bookingCode}. Dịch vụ sẽ được tính vào hóa đơn sau khi Lễ tân check-in.`); }
     catch(e){setMsg(e.message)}
   }
   if (loading) return <div className="loader">Đang tải dịch vụ…</div>;
@@ -77,7 +77,7 @@ function ServicesTab({ bookings }) {
     <div className="notice">Bạn có thể đăng ký dịch vụ cho booking đã xác nhận. Dịch vụ chỉ được tính vào hóa đơn khi Lễ tân check-in.</div>
     {activeBookings.length>0 ? <label style={{maxWidth:420,display:'block',margin:'18px 0'}}>Đặt phòng sử dụng dịch vụ<select value={bookingCode} onChange={e=>setBookingCode(e.target.value)}>{activeBookings.map(b=><option key={b.id} value={b.booking_code}>{b.booking_code} · Phòng {b.room_number}</option>)}</select></label> : <div className="empty">Bạn chưa có đặt phòng đang hoạt động để đặt dịch vụ.</div>}
     {msg && <div className="notice">{msg}</div>}
-    <div className="service-customer-grid">{services.map(s=><div className="customer-service-card" key={s.id}><span className="eyebrow">DỊCH VỤ</span><h3>{s.name}</h3><p>{s.description||'Dịch vụ tại LUXORA HOTEL'}</p><b>{money(s.price)}</b><div className="service-order"><input type="number" min="1" max="50" value={qty[s.id]||1} onChange={e=>setQty({...qty,[s.id]:e.target.value})}/><button className="btn dark" disabled={!activeBookings.length} onClick={()=>add(s)}>Thêm vào đặt phòng</button></div></div>)}</div>
+    <div className="service-customer-grid">{services.map(s=>{const display=serviceDisplay(s);return <div className="customer-service-card" key={s.id}><span className="eyebrow">DỊCH VỤ</span><h3>{display.name}</h3><p>{display.description||'Dịch vụ tại LUXORA HOTEL'}</p><b>{money(s.price)}</b><div className="service-order"><input type="number" min="1" max="50" value={qty[s.id]||1} onChange={e=>setQty({...qty,[s.id]:e.target.value})}/><button className="btn dark" disabled={!activeBookings.length} onClick={()=>add(s)}>Thêm vào đặt phòng</button></div></div>})}</div>
   </div>;
 }
 
@@ -468,9 +468,9 @@ function InvoiceRow({ booking, invoiceOnly = true }) {
               <div className="invoice-section-title"><span>CHI TIẾT CHI PHÍ</span><small>{data.finalized ? 'Hóa đơn đã chốt' : 'Hóa đơn tạm tính'}</small></div>
               <div className="invoice-line"><span>Giá phòng</span><b>{money(data.invoice.roomTotal)}</b></div>
               {data.services.map(s => (
-                <div className="invoice-line" key={s.id}><span>{s.name} × {s.quantity}</span><b>{money(s.quantity * s.unit_price)}</b></div>
+                <div className="invoice-line" key={s.id}><span>{serviceDisplay(s).name} × {s.quantity}</span><b>{money(s.quantity * s.unit_price)}</b></div>
               ))}
-              {data.plannedServices?.length > 0 && <div className="invoice-planned-services"><b>Dịch vụ đã chọn, chờ check-in</b>{data.plannedServices.map(s=><div key={s.id}><span>{s.name} × {s.quantity}</span><span>{money(s.quantity*s.unit_price)} · chưa tính vào hóa đơn</span></div>)}</div>}
+              {data.plannedServices?.length > 0 && <div className="invoice-planned-services"><b>Dịch vụ đã chọn, chờ check-in</b>{data.plannedServices.map(s=><div key={s.id}><span>{serviceDisplay(s).name} × {s.quantity}</span><span>{money(s.quantity*s.unit_price)} · chưa tính vào hóa đơn</span></div>)}</div>}
               {data.invoice.surcharge > 0 && <div className="invoice-line"><span>Phụ phí trả phòng muộn</span><b>{money(data.invoice.surcharge)}</b></div>}
             </section>
             <aside className="invoice-summary">

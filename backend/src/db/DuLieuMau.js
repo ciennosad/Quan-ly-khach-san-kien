@@ -18,12 +18,12 @@ for (const [name,email,password,role] of users) {
 }
 
 const types = [
-  ['Phòng thường 1 giường','Phòng tiêu chuẩn với 1 giường lớn, phù hợp tối đa 2 khách.',2,1200000,['Wifi miễn phí','TV thông minh','Điều hòa']],
-  ['Phòng đôi 2 giường','Phòng có 2 giường đơn riêng biệt, phù hợp tối đa 2 khách.',2,1500000,['Wifi miễn phí','TV thông minh','Điều hòa']],
-  ['Phòng cao cấp 1 giường','Phòng cao cấp với 1 giường king, phù hợp tối đa 2 khách.',2,1800000,['Wifi miễn phí','Ăn sáng','TV thông minh','Bồn tắm']],
-  ['Phòng cao cấp 2 giường','Phòng cao cấp với 2 giường, phù hợp tối đa 4 khách.',4,2200000,['Wifi miễn phí','Ăn sáng','TV thông minh','Bồn tắm']],
-  ['Phòng gia đình 1 giường lớn','Phòng rộng cho gia đình với 1 giường lớn, phù hợp tối đa 4 khách.',4,2600000,['Wifi miễn phí','Ăn sáng','TV thông minh','Tủ lạnh mini']],
-  ['Phòng tập thể 5 giường','Phòng lưu trú nhóm với 5 giường riêng, phù hợp tối đa 5 khách.',5,3500000,['Wifi miễn phí','Điều hòa','Tủ khóa cá nhân']]
+  ['Phong thuong 1 giuong','Phong tieu chuan voi 1 giuong lon, phu hop toi da 2 khach.',2,1200000,['Wifi mien phi','Tivi thong minh','Dieu hoa']],
+  ['Phong doi 2 giuong','Phong co 2 giuong rieng biet, phu hop toi da 4 khach.',4,1500000,['Wifi mien phi','Tivi thong minh','Dieu hoa']],
+  ['Phong cao cap 1 giuong','Phong cao cap voi 1 giuong lon, phu hop toi da 2 khach.',2,1800000,['Wifi mien phi','Bua sang','Tivi thong minh','Bon tam']],
+  ['Phong cao cap 2 giuong','Phong cao cap voi 2 giuong, phu hop toi da 4 khach.',4,2200000,['Wifi mien phi','Bua sang','Tivi thong minh','Bon tam']],
+  ['Phong gia dinh 1 giuong lon','Phong rong cho gia dinh voi 1 giuong lon, phu hop toi da 4 khach.',4,2600000,['Wifi mien phi','Bua sang','Tivi thong minh','Tu lanh mini']],
+  ['Phong tap the 5 giuong','Phong luu tru nhom voi 5 giuong rieng, phu hop toi da 5 khach.',5,3500000,['Wifi mien phi','Dieu hoa','Tu khoa ca nhan']]
 ];
 
 for (const [name,description,capacity,price,amenities] of types) {
@@ -36,7 +36,7 @@ for (const [name,description,capacity,price,amenities] of types) {
 
 const typeRows = await pool.query(`SELECT id,name FROM room_types`);
 const map = Object.fromEntries(typeRows.rows.map(x => [x.name,x.id]));
-const rooms = [['101','Phòng thường 1 giường'],['102','Phòng đôi 2 giường'],['201','Phòng cao cấp 1 giường'],['202','Phòng cao cấp 2 giường'],['301','Phòng gia đình 1 giường lớn']];
+const rooms = [['101','Phong thuong 1 giuong'],['102','Phong doi 2 giuong'],['201','Phong cao cap 1 giuong'],['202','Phong cao cap 2 giuong'],['301','Phong gia dinh 1 giuong lon']];
 for (const [number,type] of rooms) {
   await pool.query(
     `INSERT INTO rooms(room_number,room_type_id) VALUES($1,$2) ON CONFLICT(room_number) DO NOTHING`,
@@ -44,7 +44,7 @@ for (const [number,type] of rooms) {
   );
 }
 
-const services = [['Ăn sáng buffet','Buffet sáng mỗi ngày',180000],['Giặt ủi','Giặt và sấy quần áo',100000],['Đưa đón sân bay','Đưa đón sân bay',350000],['Đồ uống & snack','Đồ uống và snack trong phòng',120000]];
+const services = [['Dua don san bay','Dua don san bay',350000],['Buffet sang','Buffet sang moi ngay',180000],['Giat say quan ao','Giat va say quan ao',100000],['Do an nhe va nuoc uong trong phong','Do uong va thuc an nhe trong phong',120000],['Nuoc suoi','Nuoc suoi',30000]];
 for (const s of services) {
   await pool.query(`INSERT INTO services(name,description,price) VALUES($1,$2,$3) ON CONFLICT(name) DO NOTHING`,s);
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, money } from './KetNoiAPI';
+import { api, money, serviceDisplay } from './KetNoiAPI';
 
 function RobotIcon({ size = 26 }) {
   return <svg className="luxora-robot-icon" width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden="true">
@@ -38,7 +38,7 @@ export default function ChatBot(){
     {open && <section className="luxora-chatbot" aria-label="Trợ lý LUXORA">
       <header><div className="chatbot-brand"><span className="chatbot-robot-badge"><RobotIcon size={25}/></span><span><b>Robot LUXORA</b><small>Trợ lý khách sạn · tư vấn phòng & dịch vụ</small></span></div><button onClick={()=>setOpen(false)} aria-label="Đóng">×</button></header>
       <div className="chatbot-body">
-        {messages.map((m,i)=><div className={`chat-message ${m.role}`} key={i}><div>{m.text}</div>{m.suggestions?.length>0&&<div className="chat-suggestions">{m.suggestions.map((s,j)=><div className="chat-suggestion" key={j}><b>{s.name}</b>{s.capacity&&<span>Tối đa {s.capacity} khách</span>}{s.price!=null&&<strong>{money(s.price)}/đêm</strong>}{s.description&&<small>{s.description}</small>}</div>)}</div>}</div>)}
+        {messages.map((m,i)=><div className={`chat-message ${m.role}`} key={i}><div>{m.text}</div>{m.suggestions?.length>0&&<div className="chat-suggestions">{m.suggestions.map((s,j)=>{const display=serviceDisplay(s);return <div className="chat-suggestion" key={j}><b>{display.name}</b>{s.capacity&&<span>Tối đa {s.capacity} khách</span>}{s.price!=null&&<strong>{money(s.price)}{s.capacity?'/đêm':''}</strong>}{display.description&&<small>{display.description}</small>}</div>})}</div>}</div>)}
         {loading&&<div className="chat-message bot"><div>Đang tra cứu thông tin LUXORA…</div></div>}
       </div>
       <div className="chatbot-quick"><button onClick={()=>send('Nhà tôi có 4 người nên chọn phòng nào?')}>👨‍👩‍👧 4 người</button><button onClick={()=>send('LUXORA có những loại phòng nào?')}>🛏️ Loại phòng</button><button onClick={()=>send('Khách sạn nhận phòng lúc mấy giờ?')}>🕑 Giờ nhận/trả</button></div>

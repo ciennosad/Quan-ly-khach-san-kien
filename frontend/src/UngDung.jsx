@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {api,money,assetUrl,roomTypeLabel,roomTypeTitle,roomTypeBedInfo} from './KetNoiAPI';
+import {api,money,assetUrl,roomTypeLabel,roomTypeTitle,roomTypeBedInfo,serviceDisplay} from './KetNoiAPI';
 import ChatBot from './ChatBot.jsx';
 import {Link} from 'react-router-dom';
 import {getRoomGallery} from './AnhPhongMacDinh';
@@ -77,7 +77,7 @@ function App({user,setUser}){
       <article><b>THUẬN TIỆN</b><span>Đặt phòng nhanh, xác nhận rõ ràng</span></article>
       <article><b>CHU ĐÁO</b><span>Dịch vụ đồng hành trong kỳ nghỉ</span></article>
       <article><b>AN TÂM</b><span>Hỗ trợ khách hàng mỗi ngày</span></article>
-    </section>    <section id="services" className="services"><div><span className="eyebrow">DỊCH VỤ</span><h2>Mọi thứ bạn cần,<br/><em>ngay trong tầm tay.</em></h2></div><div className="service-list">{services.map((s,i)=><div className="service" key={s.id}><span>0{i+1}</span><div><h3>{s.name}</h3><p>{s.description}</p></div><b>{money(s.price)}</b></div>)}{user&&<Link className="btn primary" style={{display:'inline-block',marginTop:20}} to="/account?tab=rooms#my-room-services">Chọn dịch vụ cho đặt phòng →</Link>}</div></section>
+    </section>    <section id="services" className="services"><div><span className="eyebrow">DỊCH VỤ</span><h2>Mọi thứ bạn cần,<br/><em>ngay trong tầm tay.</em></h2></div><div className="service-list">{services.map((s,i)=>{const display=serviceDisplay(s);return <div className="service" key={s.id}><span>0{i+1}</span><div><h3>{display.name}</h3><p>{display.description}</p></div><b>{money(s.price)}</b></div>})}{user&&<Link className="btn primary" style={{display:'inline-block',marginTop:20}} to="/account?tab=rooms#my-room-services">Chọn dịch vụ cho đặt phòng →</Link>}</div></section>
     <section className="hotel-overview">
       <div className="hotel-overview-heading"><span className="eyebrow">TRẢI NGHIỆM LUXORA</span><h2>Không gian nghỉ dưỡng<br/><em>dành riêng cho bạn</em></h2></div>
       <div className="hotel-overview-grid">

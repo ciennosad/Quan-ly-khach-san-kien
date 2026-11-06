@@ -12,7 +12,7 @@ import {auth,roles} from '../middleware/XacThuc.js';
 import {accessToken,refreshToken,randomToken,sha256} from '../utils/BaoMat.js';
 import {bookingCode,invoiceTotals} from '../utils/DatPhong.js';
 import {sendMail} from '../utils/ThuDienTu.js';
-import {askOpenAI,relevantKnowledge} from '../utils/TroLyAI.js';
+import {answerFromKnowledge,askOpenAI,relevantKnowledge} from '../utils/TroLyAI.js';
 
 export const router=Router();
 const uploadsDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../uploads');
@@ -22,17 +22,37 @@ const upload=multer({dest:uploadsDir,limits:{fileSize:5*1024*1024}});
 // Tên loại phòng hiển thị luôn bằng tiếng Việt; tên trong DB có thể giữ nguyên để không phá dữ liệu cũ.
 const roomTypeLabel=(name,description='')=>{
   const n=`${name||''} ${description||''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  if(/(?:5|five)\s*(?:giuong|bed)|tap the|dorm/.test(n)) return 'Phòng tập thể 5 giường';
-  if(/family|gia dinh/.test(n)) return 'Phòng gia đình · 1 giường lớn';
-  if(/cao cap|premium|suite|deluxe/.test(n)) {
-    if(/(?:2|two|twin|double)\s*(?:giuong|bed)|giuong doi|sofa rieng|suite/.test(n)) return 'Phòng cao cấp · 2 giường';
-    return 'Phòng cao cấp · 1 giường';
-  }
-  if(/standard|phong thuong|single|phong don/.test(n)) return 'Phòng thường · 1 giường';
-  if(/twin|double|phong doi|2\s*(?:giuong|bed)/.test(n)) return 'Phòng đôi · 2 giường';
-  if(/single|1\s*(?:giuong|bed)|phong don/.test(n)) return 'Phòng thường · 1 giường';
+  const countBeds=value=>[...String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').matchAll(/(\d+)\s*giuong\b/g)].reduce((total,match)=>total+Number(match[1]),0);
+  const bedCount=countBeds(name)||countBeds(description);
+  if(/phong nhom|group|tap the|dorm/.test(n)) return bedCount?`Phòng nhóm · ${bedCount} giường`:'Phòng nhóm';
+  if(/family|gia dinh/.test(n)) return `Phòng gia đình · ${bedCount||1} giường${bedCount===1?' lớn':''}`;
+  if(/cao cap|premium|suite|deluxe/.test(n)) return `Phòng cao cấp · ${bedCount||1} giường`;
+  if(/standard|phong thuong|single|phong don/.test(n)) return `Phòng thường · ${bedCount||1} giường`;
+  if(/twin|double|phong doi/.test(n)) return `Phòng đôi · ${bedCount||2} giường`;
   return name||'Phòng';
 };
+
+// Giữ dữ liệu dịch vụ trong database không dấu, chuẩn hóa nội dung trả cho giao diện khách.
+const normalizeServiceText=value=>String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+const serviceNameLabels={
+  'dua don san bay':'Đưa đón sân bay',
+  'buffet sang':'Buffet sáng',
+  'giat say quan ao':'Giặt sấy quần áo',
+  'do an nhe va nuoc uong trong phong':'Đồ ăn nhẹ và nước uống trong phòng',
+  'nuoc suoi':'Nước suối'
+};
+const serviceDescriptionLabels={
+  'dua don san bay':'Đưa đón sân bay',
+  'buffet sang moi ngay':'Buffet sáng mỗi ngày',
+  'giat va say quan ao':'Giặt và sấy quần áo',
+  'do uong va thuc an nhe trong phong':'Đồ uống và thức ăn nhẹ trong phòng',
+  'nuoc suoi cua gia dinh tu sang tao ra':'Nước suối'
+};
+const serviceForDisplay=service=>({
+  ...service,
+  name:serviceNameLabels[normalizeServiceText(service?.name)]||service?.name,
+  description:serviceDescriptionLabels[normalizeServiceText(service?.description)]||service?.description
+});
 
 // Chống brute-force cho các endpoint nhạy cảm (login, đăng ký, quên mật khẩu).
 const authLimiter=rateLimit({windowMs:15*60*1000,max:20,standardHeaders:true,legacyHeaders:false,
@@ -127,7 +147,7 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
       return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value;
     };
     const toolSpecs=[
-      {type:'function',name:'search_room_availability',description:'Tra cứu loại phòng thực sự còn trống trong cả khoảng lưu trú, theo ngày, sức chứa, loại phòng và ngân sách khách cung cấp. Gọi khi khách hỏi phòng trống/giá theo ngày.',strict:true,parameters:{type:'object',additionalProperties:false,properties:{check_in:{type:'string',description:'Ngày nhận YYYY-MM-DD'},check_out:{type:'string',description:'Ngày trả YYYY-MM-DD'},guests:{type:'integer',minimum:1,maximum:20},room_type:{type:['string','null']},max_total:{type:['number','null'],description:'Ngân sách tối đa cho toàn kỳ lưu trú nếu khách nêu'}} ,required:['check_in','check_out','guests','room_type','max_total']}},
+      {type:'function',name:'search_room_availability',description:'Chỉ trả các loại phòng đang trống trong cả khoảng lưu trú có sức chứa đúng bằng số khách yêu cầu; đồng thời lọc theo loại phòng và ngân sách nếu khách cung cấp. Gọi khi khách hỏi phòng trống/giá theo ngày.',strict:true,parameters:{type:'object',additionalProperties:false,properties:{check_in:{type:'string',description:'Ngày nhận YYYY-MM-DD'},check_out:{type:'string',description:'Ngày trả YYYY-MM-DD'},guests:{type:'integer',minimum:1,maximum:20},room_type:{type:['string','null']},max_total:{type:['number','null'],description:'Ngân sách tối đa cho toàn kỳ lưu trú nếu khách nêu'}} ,required:['check_in','check_out','guests','room_type','max_total']}},
       {type:'function',name:'list_services',description:'Lấy danh sách dịch vụ và giá hiện đang bật trong hệ thống.',strict:true,parameters:{type:'object',additionalProperties:false,properties:{},required:[]}}
     ];
     if(allowedStaff.includes(role)) toolSpecs.push(
@@ -153,7 +173,7 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
         if(start<=new Date()) return {error:'Đã qua giờ nhận phòng trong ngày này. Hãy hỏi khách chọn ngày khác.'};
         const rows=(await pool.query(`SELECT rt.id,rt.name,rt.description,rt.capacity,rt.base_price,rt.amenities,COUNT(r.id)::int available_count
           FROM room_types rt JOIN rooms r ON r.room_type_id=rt.id
-          WHERE rt.capacity >= $1 AND ($2='' OR rt.name ILIKE '%'||$2||'%')
+          WHERE rt.capacity = $1 AND ($2='' OR rt.name ILIKE '%'||$2||'%')
             AND r.status <> 'MAINTENANCE'
             AND ($3::date > (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date OR r.status NOT IN ('OCCUPIED','CLEANING'))
             AND NOT EXISTS(SELECT 1 FROM bookings b WHERE b.room_id=r.id
@@ -166,12 +186,12 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
         for(const room of rows){
           const pricing=await getRoomPricing(pool,room.id,checkIn,checkOut,room.base_price);
           if(maxTotal!=null&&pricing.total>Number(maxTotal)) continue;
-          matches.push({name:room.name,description:room.description||'',capacity:Number(room.capacity),availableCount:Number(room.available_count),totalPrice:pricing.total,nights,nightlyRates:pricing.nightlyRates.map(rate=>({date:rate.date,price:rate.price})),amenities:room.amenities||[]});
+          matches.push({name:roomTypeLabel(room.name,room.description),description:room.description||'',capacity:Number(room.capacity),availableCount:Number(room.available_count),totalPrice:pricing.total,nights,nightlyRates:pricing.nightlyRates.map(rate=>({date:rate.date,price:rate.price})),amenities:room.amenities||[]});
         }
         return {checkIn,checkOut,guests,nights,rooms:matches,checkedAt:new Date().toISOString(),message:matches.length?'Đây là kết quả tra cứu hiện tại; chưa giữ phòng.':'Không có loại phòng phù hợp còn trống cho toàn bộ khoảng ngày này.'};
       }
       if(name==='list_services'){
-        return {services:(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 30`)).rows.map(s=>({...s,price:Number(s.price)}))};
+        return {services:(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 30`)).rows.map(s=>({...serviceForDisplay(s),price:Number(s.price)}))};
       }
       if(name==='find_bookings_by_date'){
         if(!allowedStaff.includes(role)) return {error:'Vai trò hiện tại không được tra cứu danh sách booking nội bộ.'};
@@ -233,10 +253,41 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     const queryMessage=isDateFollowUp&&priorUser?`${priorUser.content} ${message}`:message;
     const dateTokens=[...queryMessage.matchAll(/\b(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}|\d{4}-\d{1,2}-\d{1,2})\b/g)].map(m=>parseChatDate(m[0])).filter(Boolean);
     const guestMatch=queryMessage.match(/(\d{1,2})\s*(?:người|khách)/i);
+    const userMessages=[...history.filter(item=>item.role==='user').map(item=>item.content||''),message];
+    const datePattern=/\b(?:\d{1,2}[/\.\-]\d{1,2}[/\.\-]\d{4}|\d{4}-\d{1,2}-\d{1,2})\b/g;
+    const contextualDates=[...userMessages].reverse().map(value=>[...value.matchAll(datePattern)].map(m=>parseChatDate(m[0])).filter(Boolean)).find(values=>values.length>=2);
+    if(contextualDates) dateTokens.splice(0,dateTokens.length,...contextualDates.slice(-2));
+    const contextualGuestMatch=guestMatch||[...userMessages].reverse().map(value=>value.match(/(\d{1,2})\s*(?:người|khách)/i)).find(Boolean)||null;
+    const normalizedQuestion=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
     const asksAvailability=/ph[oò]ng|c[oò]n tr[oố]ng|đặt ph[oò]ng|s[oố] ph[oò]ng/i.test(queryMessage);
     const roomRequests=[...queryMessage.matchAll(/(\d{1,2})\s*ph[oò]ng\s*(\d{1,2})\s*(?:người|khách)/gi)]
       .flatMap(match=>Array.from({length:Math.min(Number(match[1]),10)},()=>Number(match[2])))
       .filter(count=>count>=1&&count<=20);
+    const roomTypes=(await pool.query(`SELECT id,name,description,capacity,base_price FROM room_types ORDER BY base_price,name`)).rows;
+    const roomTypeLabels=roomTypes.map(type=>({type,label:roomTypeLabel(type.name,type.description),title:roomTypeLabel(type.name,type.description).split(' · ')[0]}));
+    const normalizeName=value=>String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+    const exactRoomTypes=roomTypeLabels.filter(({type,label})=>[type.name,label].some(alias=>normalizeName(alias).length>3&&normalizedQuestion.includes(normalizeName(alias))));
+    const namedRoomTypes=exactRoomTypes.length?exactRoomTypes:roomTypeLabels.filter(({title})=>normalizeName(title).length>5&&normalizedQuestion.includes(normalizeName(title)));
+    const asksRoomPrice=/gia|tong|tien|bao nhieu|chi phi|dat phong/.test(normalizedQuestion);
+    const requestedGuests=Number(contextualGuestMatch?.[1]||0);
+    const sameCapacityRoomTypes=namedRoomTypes.filter(item=>Number(item.type.capacity)===requestedGuests);
+    const quoteRoomTypes=requestedGuests&&sameCapacityRoomTypes.length?sameCapacityRoomTypes:namedRoomTypes;
+    if((role==='GUEST'||role==='CUSTOMER')&&quoteRoomTypes.length&&(asksRoomPrice||asksAvailability)){
+      if(quoteRoomTypes.length>1) return res.json({answer:'Mình thấy có nhiều hạng phòng cùng nhóm tên này. Bạn cho mình biết số giường hoặc tên loại phòng cụ thể để mình tính đúng nhé?',suggestions:[],aiEnabled:false});
+      const selectedType=quoteRoomTypes[0].type;
+      const selectedLabel=quoteRoomTypes[0].label;
+      const guests=requestedGuests;
+      if(!guests) return res.json({answer:`Bạn muốn đặt ${selectedLabel}. Bạn cho mình biết số khách nhé?`,suggestions:[],aiEnabled:false});
+      if(dateTokens.length<2) return res.json({answer:`Mình đã ghi nhận ${guests} khách và loại ${selectedLabel}. Bạn cho mình ngày nhận phòng và ngày trả phòng để kiểm tra tình trạng cùng tổng giá chính xác nhé.`,suggestions:[],aiEnabled:false});
+      const [checkIn,checkOut]=dateTokens.slice(-2);
+      if(!validDate(checkIn)||!validDate(checkOut)||checkOut<=checkIn) return res.json({answer:'Ngày nhận/trả phòng chưa hợp lệ. Bạn gửi lại ngày nhận và ngày trả phòng nhé.',suggestions:[],aiEnabled:false});
+      const quote=await executeTool('search_room_availability',{check_in:checkIn,check_out:checkOut,guests,room_type:selectedType.name,max_total:null});
+      if(quote.error) return res.json({answer:quote.error,suggestions:[],aiEnabled:false});
+      const result=quote.rooms?.find(room=>room.name===selectedLabel);
+      if(!result) return res.json({answer:`Mình chưa tìm thấy ${selectedLabel} còn trống, đúng sức chứa ${guests} khách, từ ${checkIn} đến ${checkOut}. Bạn muốn mình kiểm tra loại phòng khác không?`,suggestions:[],aiEnabled:false});
+      const nightly=result.nightlyRates.map(rate=>`${rate.date}: ${Number(rate.price).toLocaleString('vi-VN')} ₫`).join('; ');
+      return res.json({answer:`Mình đã kiểm tra đúng loại ${result.name} cho ${guests} khách từ ${checkIn} đến ${checkOut} (${result.nights} đêm). Hiện còn ${result.availableCount} phòng phù hợp. Tổng tiền phòng là ${Number(result.totalPrice).toLocaleString('vi-VN')} ₫ (${nightly}). Giá chưa gồm dịch vụ phát sinh và phòng chưa được giữ chỗ.`,suggestions:[],aiEnabled:false});
+    }
     if(asksAvailability&&!dateTokens.length&&(roomRequests.length||/ph[oò]ng.*(?:tr[oố]ng|đặt)|(?:tr[oố]ng|đặt).*ph[oò]ng/i.test(queryMessage))){
       const roomText=roomRequests.length?` cho ${roomRequests.length} phòng (${roomRequests.map((count,index)=>`phòng ${index+1}: ${count} khách`).join(', ')})`:'';
       return res.json({answer:`Mình có thể kiểm tra tình trạng${roomText}. Bạn cho mình ngày nhận phòng và ngày trả phòng nhé?`,suggestions:[],aiEnabled:false});
@@ -261,14 +312,14 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
           ORDER BY rt.base_price,r.room_number`,[checkIn,checkIn,checkOut])).rows;
         const assigned=new Set(),assignments=[];
         for(const guestCount of [...roomRequests].sort((a,b)=>b-a)){
-          const room=availableRooms.find(candidate=>!assigned.has(String(candidate.id))&&Number(candidate.capacity)>=guestCount);
+          const room=availableRooms.find(candidate=>!assigned.has(String(candidate.id))&&Number(candidate.capacity)===guestCount);
           if(!room){
             const requestSummary=roomRequests.map((count,index)=>`phòng ${index+1} cho ${count} khách`).join(', ');
             return res.json({answer:`Mình chưa tìm được đủ ${roomRequests.length} phòng riêng biệt từ ${checkIn} đến ${checkOut} cho yêu cầu ${requestSummary}. Bạn có thể thử ngày khác hoặc liên hệ lễ tân để kiểm tra phương án gần nhất.`,suggestions:[],aiEnabled:false});
           }
           assigned.add(String(room.id));
           const pricing=await getRoomPricing(pool,room.room_type_id,checkIn,checkOut,room.base_price);
-          assignments.push({guestCount,name:room.name,capacity:Number(room.capacity),total:Number(pricing.total)});
+          assignments.push({guestCount,name:roomTypeLabel(room.name,room.description),capacity:Number(room.capacity),total:Number(pricing.total)});
         }
         const assignmentText=assignments.map((room,index)=>`• Phòng ${index+1}: loại ${room.name}, ${room.capacity} khách tối đa, ${room.guestCount} khách; ${room.total.toLocaleString('vi-VN')} ₫ / ${nights} đêm`).join('\n');
         return res.json({answer:`Mình đã kiểm tra ${roomRequests.length} phòng từ ${checkIn} đến ${checkOut}. Có phòng phù hợp cho từng yêu cầu:\n${assignmentText}\n\nKết quả chưa giữ phòng và có thể thay đổi trước khi hoàn tất đặt phòng.`,suggestions:[],aiEnabled:false});
@@ -285,14 +336,13 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     }
     if(process.env.OPENAI_API_KEY){
       try{
-        const result=await askOpenAI({message,history,role,knowledge:relevantKnowledge(message,role),tools:toolSpecs,runTool:executeTool});
+        const result=await askOpenAI({message,history,role,knowledge:relevantKnowledge(message,role,history),tools:toolSpecs,runTool:executeTool});
         if(result?.answer) return res.json({answer:result.answer,suggestions:[],aiEnabled:true});
       }catch(error){
         console.error('[CHATBOT_AI]',error.message);
-        return res.status(503).json({message:'Trợ lý AI đang tạm thời không kết nối được. Vui lòng thử lại hoặc liên hệ lễ tân.'});
       }
     }
-    // Chế độ tương thích khi chưa cấu hình API key: giữ câu trả lời từ khóa hiện có.
+    // Chế độ không tính phí API: dùng câu trả lời đã duyệt trong file kiến thức và dữ liệu hệ thống.
     const q=message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     if(/lien he|so dien thoai|dien thoai|hotline|email|gmail|contact/.test(q)) return res.json({answer:'Thông tin liên hệ LUXORA HOTEL:\nNgười phụ trách: Dương Đình Kiền\nĐiện thoại: 0379 887 282\nEmail: kienduon757@gmail.com',suggestions:[],aiEnabled:false});
     if(/con phong|phong trong|phong nao|ngay nhan|ngay tra|dat phong tu|tu ngay/.test(q)){
@@ -300,12 +350,20 @@ router.post('/chatbot',chatbotLimiter,async(req,res,next)=>{
     }
     const nums=[...q.matchAll(/\b(\d{1,2})\s*(?:nguoi|khach)\b/g)].map(m=>Number(m[1]));
     const guestCount=nums[0]||null;
-    const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
-    const rooms=(await pool.query(`SELECT rt.id,rt.name,rt.capacity,rt.base_price,rt.description,rt.amenities FROM room_types rt ORDER BY rt.base_price`)).rows;
-    if(/dich vu|giat|an sang|spa/.test(q)) return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({name:s.name,description:s.description||'',price:Number(s.price)})),aiEnabled:false});
+    if(/danh sach dich vu|co nhung dich vu|co dich vu gi|dich vu nao|gia dich vu|cac dich vu|dich vu.*(gi|nao|xem|danh sach|gia|loai)/.test(q)){
+      const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
+      return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({...serviceForDisplay(s),price:Number(s.price)})),aiEnabled:false});
+    }
     if(/nhan phong|tra phong|check.?in|check.?out/.test(q)) return res.json({answer:'LUXORA nhận phòng từ 14:00 và trả phòng tối đa lúc 12:00.',suggestions:[],aiEnabled:false});
-    const candidates=rooms.filter(r=>!guestCount||Number(r.capacity)>=guestCount);
-    if(/phong|gia|nguoi|khach|suc chua/.test(q)) return res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể kết nối trợ lý AI lúc này. Vui lòng thử lại sau.':(guestCount?`Với ${guestCount} khách, đây là các loại phòng đủ sức chứa theo dữ liệu hiện có:`:'Đây là các loại phòng và giá cơ bản hiện có:') ,suggestions:candidates.slice(0,8).map(r=>({name:r.name,capacity:Number(r.capacity),price:Number(r.base_price),description:r.description||'',amenities:r.amenities||[]})),aiEnabled:false});
+    const knowledgeAnswer=answerFromKnowledge(message,role,history);
+    if(knowledgeAnswer) return res.json({answer:knowledgeAnswer,suggestions:[],aiEnabled:false});
+    if(/dich vu|giat|an sang|spa/.test(q)){
+      const services=(await pool.query(`SELECT name,description,price FROM services WHERE is_active=true ORDER BY name LIMIT 8`)).rows;
+      return res.json({answer:services.length?'LUXORA hiện có các dịch vụ sau:':'Hiện hệ thống chưa có dịch vụ nào được bật.',suggestions:services.map(s=>({...serviceForDisplay(s),price:Number(s.price)})),aiEnabled:false});
+    }
+    const rooms=(await pool.query(`SELECT rt.id,rt.name,rt.capacity,rt.base_price,rt.description,rt.amenities FROM room_types rt ORDER BY rt.base_price`)).rows;
+    const candidates=rooms.filter(r=>!guestCount||Number(r.capacity)===guestCount);
+    if(/phong|gia|nguoi|khach|suc chua/.test(q)) return res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể kết nối trợ lý AI lúc này. Vui lòng thử lại sau.':(guestCount?`Với ${guestCount} khách, đây là các loại phòng đủ sức chứa theo dữ liệu hiện có:`:'Đây là các loại phòng và giá cơ bản hiện có:') ,suggestions:candidates.slice(0,8).map(r=>({name:roomTypeLabel(r.name,r.description),capacity:Number(r.capacity),price:Number(r.base_price),description:r.description||'',amenities:r.amenities||[]})),aiEnabled:false});
     res.json({answer:process.env.OPENAI_API_KEY?'Mình chưa thể trả lời chính xác câu hỏi này lúc này. Bạn có thể hỏi về phòng, dịch vụ, giá cơ bản hoặc giờ nhận/trả phòng; nếu cần hỗ trợ đặt phòng, vui lòng liên hệ lễ tân.':'Mình chưa có đủ thông tin để trả lời chính xác câu hỏi này. Hiện mình có thể hỗ trợ thông tin chung về phòng, dịch vụ và giờ nhận/trả phòng. Với yêu cầu đặt phòng cụ thể, bạn vui lòng gửi ngày lưu trú và số khách hoặc liên hệ lễ tân.',suggestions:[],aiEnabled:false});
   }catch(e){next(e)}
 });
@@ -545,7 +603,7 @@ router.get('/rooms',async(req,res,next)=>{
 });
 
 router.get('/services',async(req,res,next)=>{
-  try{res.json((await pool.query(`SELECT * FROM services WHERE is_active=true ORDER BY name`)).rows)}
+  try{res.json((await pool.query(`SELECT * FROM services WHERE is_active=true ORDER BY name`)).rows.map(serviceForDisplay))}
   catch(e){next(e)}
 });
 

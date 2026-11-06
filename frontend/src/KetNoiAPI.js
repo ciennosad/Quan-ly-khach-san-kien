@@ -66,17 +66,35 @@ export const money=n=>new Intl.NumberFormat('vi-VN',{style:'currency',currency:'
 export const date=v=>v?new Date(v).toLocaleString('vi-VN',{dateStyle:'medium',timeStyle:'short'}):'—';
 export const roleLabel=r=>({ADMIN:'Quản trị viên',MANAGER:'Quản lý',RECEPTIONIST:'Lễ tân',STAFF:'Nhân viên',CUSTOMER:'Khách hàng'}[r]||r);
 export const bookingStatusLabel=s=>({PENDING_PAYMENT:'Chờ thanh toán',CONFIRMED:'Đã xác nhận',CHECKED_IN:'Đang lưu trú',COMPLETED:'Đã trả phòng',CANCELLED:'Đã hủy'}[s]||s);
+const normalizeServiceText=value=>String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+const serviceNames={
+  'dua don san bay':'Đưa đón sân bay',
+  'buffet sang':'Buffet sáng',
+  'giat say quan ao':'Giặt sấy quần áo',
+  'do an nhe va nuoc uong trong phong':'Đồ ăn nhẹ và nước uống trong phòng',
+  'nuoc suoi':'Nước suối'
+};
+const serviceDescriptions={
+  'dua don san bay':'Đưa đón sân bay',
+  'buffet sang moi ngay':'Buffet sáng mỗi ngày',
+  'giat va say quan ao':'Giặt và sấy quần áo',
+  'do uong va thuc an nhe trong phong':'Đồ uống và thức ăn nhẹ trong phòng',
+  'nuoc suoi cua gia dinh tu sang tao ra':'Nước suối'
+};
+export const serviceDisplay=service=>({
+  ...service,
+  name:serviceNames[normalizeServiceText(service?.name)]||service?.name,
+  description:serviceDescriptions[normalizeServiceText(service?.description)]||service?.description
+});
 export const roomTypeLabel=(name,description='')=>{
   const n=`${name||''} ${description||''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  if(/(?:5|five)\s*(?:giuong|bed)|tap the|dorm/.test(n)) return 'Phòng tập thể 5 giường';
-  if(/family|gia dinh/.test(n)) return 'Phòng gia đình · 1 giường lớn';
-  if(/cao cap|premium|suite|deluxe/.test(n)) {
-    if(/(?:2|two|twin|double)\s*(?:giuong|bed)|giuong doi|sofa rieng|suite/.test(n)) return 'Phòng cao cấp · 2 giường';
-    return 'Phòng cao cấp · 1 giường';
-  }
-  if(/standard|phong thuong|single|phong don/.test(n)) return 'Phòng thường · 1 giường';
-  if(/twin|double|phong doi|2\s*(?:giuong|bed)/.test(n)) return 'Phòng đôi · 2 giường';
-  if(/single|1\s*(?:giuong|bed)|phong don/.test(n)) return 'Phòng thường · 1 giường';
+  const countBeds=value=>[...String(value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').matchAll(/(\d+)\s*giuong\b/g)].reduce((total,match)=>total+Number(match[1]),0);
+  const bedCount=countBeds(name)||countBeds(description);
+  if(/phong nhom|group|tap the|dorm/.test(n)) return bedCount?`Phòng nhóm · ${bedCount} giường`:'Phòng nhóm';
+  if(/family|gia dinh/.test(n)) return `Phòng gia đình · ${bedCount||1} giường${bedCount===1?' lớn':''}`;
+  if(/cao cap|premium|suite|deluxe/.test(n)) return `Phòng cao cấp · ${bedCount||1} giường`;
+  if(/standard|phong thuong|single|phong don/.test(n)) return `Phòng thường · ${bedCount||1} giường`;
+  if(/twin|double|phong doi/.test(n)) return `Phòng đôi · ${bedCount||2} giường`;
   return name||'Phòng';
 };
 export const roomTypeTitle=(name,description='')=>roomTypeLabel(name,description).split(' · ')[0];

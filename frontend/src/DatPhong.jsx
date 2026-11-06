@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, money, assetUrl, roomTypeLabel, roomTypeTitle, roomTypeBedInfo } from './KetNoiAPI';
+import { api, money, assetUrl, roomTypeLabel, roomTypeTitle, roomTypeBedInfo, serviceDisplay } from './KetNoiAPI';
 import { getRoomGallery } from './AnhPhongMacDinh';
 
 function isoDate(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -212,10 +212,11 @@ export default function Booking() {
                   <div><b>Chọn dịch vụ cho kỳ lưu trú <small>(tùy chọn)</small></b><p>Dịch vụ được lưu là dự kiến và chỉ tính vào hóa đơn khi Lễ tân xác nhận nhận phòng.</p></div>
                   <div className="booking-service-options">{services.map(s => {
                     const chosen=!!selectedServices[s.id];
+                    const display=serviceDisplay(s);
                     return <label className={`booking-service-option ${chosen?'selected':''}`} key={s.id}>
                       <input type="checkbox" checked={chosen} onChange={e => setSelectedServices(current => { const next={...current}; if(e.target.checked) next[s.id]={quantity:1}; else delete next[s.id]; return next; })} />
-                      <span><b>{s.name}</b><small>{s.description||'Dịch vụ tại khách sạn'}</small></span><strong>{money(s.price)}</strong>
-                      {chosen && <input className="booking-service-quantity" aria-label={`Số lượng ${s.name}`} type="number" min="1" max="50" value={selectedServices[s.id].quantity} onChange={e => setSelectedServices(current => ({...current,[s.id]:{quantity:e.target.value}}))} />}
+                      <span><b>{display.name}</b><small>{display.description||'Dịch vụ tại khách sạn'}</small></span><strong>{money(s.price)}</strong>
+                      {chosen && <input className="booking-service-quantity" aria-label={`Số lượng ${display.name}`} type="number" min="1" max="50" value={selectedServices[s.id].quantity} onChange={e => setSelectedServices(current => ({...current,[s.id]:{quantity:e.target.value}}))} />}
                     </label>;
                   })}</div>
                   {Object.keys(selectedServices).length>0 && <small className="booking-service-footnote">Đã chọn {Object.keys(selectedServices).length} dịch vụ dự kiến. Số tiền chưa cộng vào tiền cọc hoặc hóa đơn trước check-in.</small>}
@@ -238,7 +239,7 @@ export default function Booking() {
 
             {msg && <div className="notice">{msg}</div>}
             {pricing && <div className="booking-estimate"><span>Tổng sau giảm giá</span><b>{money(pricing.finalPrice)}</b><small>{pricing.nights} đêm · {pricing.guestCount || form.guests} khách · Còn lại sau cọc {money(pricing.remaining)}</small></div>}
-            {bookingServices.length>0 && <div className="invoice-planned-services"><b>Dịch vụ đã đăng ký · chờ Lễ tân check-in</b>{bookingServices.map(s=><div key={s.id}><span>{s.name} × {s.quantity}</span><span>{money(Number(s.unit_price)*Number(s.quantity))} · chưa cộng vào hóa đơn</span></div>)}</div>}
+            {bookingServices.length>0 && <div className="invoice-planned-services"><b>Dịch vụ đã đăng ký · chờ Lễ tân check-in</b>{bookingServices.map(s=><div key={s.id}><span>{serviceDisplay(s).name} × {s.quantity}</span><span>{money(Number(s.unit_price)*Number(s.quantity))} · chưa cộng vào hóa đơn</span></div>)}</div>}
             {booking && Number(booking.deposit_amount) > 0 && form.paymentMethod === 'CASH' && <div className="notice">Bạn đã chọn <b>tiền mặt tại quầy</b>. Đặt phòng đang chờ nhân viên xác nhận khoản cọc khi bạn thanh toán trực tiếp.</div>}
 
             {qr && (

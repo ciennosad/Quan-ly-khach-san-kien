@@ -1,0 +1,182 @@
+THIẾT KẾ YÊU CẦU WEB BOOKING & QUẢN LÝ KHÁCH SẠN
+
+Mục tiêu:
+Xây dựng một website booking khách sạn kết hợp hệ thống quản lý khách sạn cho 1 cơ sở
+
+Công nghệ dự kiến:
+- Frontend: React + JavaScript + CSS
+- Backend: Node.js + Express
+- Database: PostgreSQL
+- Git/GitHub
+- Neon
+- render
+- Deploy lên Internet
+
+1. PHÂN QUYỀN
+- Khách hàng:
+  + Đăng ký/đăng nhập
+  + Xem và lựa chọn phòng
+  + Đặt phòng
+  + Đặt cọc online
+  + Thanh toán
+  + Xem booking, hóa đơn, lịch sử
+  + Hủy booking theo chính sách
+  + Đánh giá
+- Lễ tân:
+  + Quản lý booking
+  + Check-in/check-out
+  + Kiểm tra booking bằng QR hoặc nhập mã thủ công
+  + Quản lý khách lưu trú
+  + Quản lý trạng thái phòng
+  + Thêm dịch vụ
+  + Xử lý/thu tiền và hóa đơn
+- Quản lý:
+  + Trang chủ
+  + Quản lý phòng, loại phòng, giá phòng
+  + Upload nhiều hình ảnh phòng thực tế để khách xem và lựa chọn
+  + Quản lý nhân viên/lễ tân
+  + Quản lý booking, dịch vụ ngoài, hóa đơn, thanh toán
+  + Xem doanh thu và thống kê
+  + Xuất báo cáo Excel/PDF
+  + Xem nhật ký hoạt động/audit log
+
+2. BOOKING + QR
+- Hệ thống tự tạo mã booking, ví dụ BK-20260916-0001. (Mã ngẫu nhiên)
+- Mỗi booking có QR Code.
+- Lễ tân có thể quét QR hoặc nhập mã booking thủ công.
+- QR không chứa toàn bộ thông tin nhạy cảm; backend phải xác thực.
+- Ghi log người thực hiện và thời gian thao tác.
+- Có cơ chế chống sử dụng QR/mã trái phép.
+
+3. CHECK-IN / CHECK-OUT
+- Lưu ngày và giờ check-in thực tế.
+- Lưu ngày và giờ check-out thực tế.
+- Báo cáo phải thể hiện giờ vào/giờ ra của từng phòng/booking.
+- Có thể cấu hình phụ phí trả phòng muộn. (Khách trả phòng ngoài giờ đặt hệ thống đã đặt lịch thì hệ thống bên hóa đơn tự cộng thêm phí ngoài giờ)
+
+4. THANH TOÁN + ĐẶT CỌC
+- Khách có thể đặt cọc online trên website.
+- Sau khi backend xác nhận thanh toán thành công, booking mới được xác nhận theo quy trình.
+- Quản lý nhận được tiền cọc, thanh toán, hoàn tiền.
+- Chống đặt trùng phòng theo khoảng ngày/giờ.
+- Dùng transaction/database logic phù hợp cho nghiệp vụ booking và thanh toán.
+
+5. HÓA ĐƠN + EMAIL
+- Sau khi khách đặt phòng và thanh toán cọc thành công, hệ thống gửi email xác nhận.
+- Email gồm: mã booking, thông tin khách, phòng, ngày/giờ vào, ngày/giờ ra, giá phòng, tổng tiền, tiền cọc, số tiền còn lại, trạng thái thanh toán và QR booking.
+- Có thể tạo hóa đơn PDF.
+- Khi check-out, hệ thống tính tổng tiền phòng + dịch vụ + phụ phí - tiền cọc = số tiền còn phải trả.
+- Khách có thể xem lại hóa đơn trên website.
+
+6. QUẢN LÝ PHÒNG + HÌNH ẢNH
+- Trạng thái phòng: Trống, Đã đặt, Đang sử dụng, Đang dọn, Đang bảo trì.
+- Quản lý có thể thêm/sửa/xóa phòng.
+- Upload ảnh đại diện và nhiều ảnh cho từng phòng.
+- Khách xem ảnh, thông tin, tiện nghi và giá để lựa chọn phòng.
+
+7. DỊCH VỤ
+- Quản lý danh sách dịch vụ như ăn sáng, giặt ủi, đồ uống, đưa đón...
+- Lễ tân thêm dịch vụ vào booking.
+- Chi phí dịch vụ tự cộng vào hóa đơn.
+
+8. BÁO CÁO
+- Báo cáo doanh thu theo ngày/tháng/năm.
+- Báo cáo booking.
+- Báo cáo phòng/công suất phòng.
+- Báo cáo khách hàng.
+- Báo cáo tiền cọc, thanh toán, hoàn tiền.
+- Báo cáo phải có: mã booking, khách, phòng, ngày + giờ check-in, ngày + giờ check-out, tiền phòng, dịch vụ, cọc, thanh toán, phụ phí, tổng hóa đơn và trạng thái.
+- Có thể xuất Excel/PDF.
+
+9. BẢO MẬT
+- Authentication + RBAC.
+- JWT + refresh token.
+- Hash mật khẩu bằng bcrypt/Argon2.
+- Validate dữ liệu.
+- CORS, Helmet, rate limiting.
+- Parameterized queries/chống SQL injection.
+- Secret/API key chỉ lưu ở .env/backend.
+- HTTPS khi deploy.
+- Kiểm tra quyền ở backend.
+- Audit log cho thao tác quan trọng.
+- Có phương án backup/khôi phục database.
+
+10. CHỨC NĂNG CÓ THỂ BỔ SUNG
+- Mã giảm giá.
+- Thông báo cho khách/lễ tân/quản lý.
+- Đánh giá phòng sau khi check-out.
+- Lịch sử khách hàng.
+- Chính sách hủy phòng.
+- Quản lý giá theo thời điểm nếu cần.
+
+11. KIẾN TRÚC TỔNG QUÁT
+Khách hàng / Lễ tân / Quản lý
+        ↓
+React Frontend
+        ↓ HTTPS / API
+Node.js + Express
+        ↓
+PostgreSQL
+        ↓
+Payment Gateway + Email + File/Image Storage
+
+12. CÁCH TRIỂN KHAI
+Không code toàn bộ cùng lúc. Chia thành từng giai đoạn:
+1) Thiết kế database
+2) Authentication + phân quyền
+3) Phòng + loại phòng + hình ảnh
+4) Booking + kiểm tra phòng trống
+5) Lễ tân + check-in/check-out + QR
+6) Dịch vụ + hóa đơn
+7) Đặt cọc + thanh toán
+8) Email + PDF
+9) Báo cáo Excel/PDF
+10) Bảo mật + audit log + test
+11) Deploy
+
+Lưu ý:
+- Project có thể có vài chục đến hơn 100 file tùy mức độ tách code.
+- Không nên viết tất cả trong một file.
+- Nên dùng Git commit sau từng module/giai đoạn.
+- AI có thể hỗ trợ code, nhưng cần chạy/test sau mỗi thay đổi.
+- Mục tiêu là làm đồ án đủ chuyên nghiệp nhưng vẫn dễ hiểu và có thể giải thích khi bảo vệ.
+
+13. ADMIN
+- Có role Admin riêng, phụ trách quản trị hệ thống.
+- Quản lý tài khoản người dùng.
+- Phân quyền: Admin / Quản lý / Lễ tân / Khách hàng.
+- Khóa/mở tài khoản.
+- Quản lý cấu hình và bảo mật hệ thống.
+- Xem audit log.
+- Có thể xuất danh sách tài khoản đã đăng ký ra Excel/PDF.
+- Danh sách xuất gồm: ID, họ tên, email, SĐT, quyền, trạng thái, ngày đăng ký.
+- TUYỆT ĐỐI không xuất hoặc hiển thị mật khẩu, password hash, refresh token hay secret key.
+
+14. QUÊN MẬT KHẨU
+- Tại trang đăng nhập có chức năng "Quên mật khẩu".
+- Người dùng nhập email.
+- Hệ thống gửi email chứa link đặt lại mật khẩu.
+- Link dùng token ngẫu nhiên, có thời hạn và chỉ sử dụng một lần.
+- Người dùng tạo mật khẩu mới.
+- Backend hash mật khẩu mới rồi cập nhật database.
+- Admin không được xem mật khẩu của người dùng.
+
+15. DEPLOY
+- Source code lưu và quản lý bằng GitHub.
+- Frontend React/Vite deploy trên Render.
+- Backend Node.js/Express deploy trên Render.
+- PostgreSQL database sử dụng Neon.
+- Render kết nối GitHub để tự động build/deploy khi push code.
+- Environment Variables/secret không đưa lên GitHub.
+- Có thể gắn tên miền riêng sau khi hệ thống hoạt động ổn định.
+
+16. THANH TOÁN QUA CHUYỂN KHOẢN + TỰ ĐỘNG XÁC NHẬN
+- Hệ thống hỗ trợ khách đặt cọc và thanh toán online bằng chuyển khoản qua cổng thanh toán/dịch vụ trung gian hỗ trợ VietQR và webhook, hoặc API ngân hàng nếu đủ điều kiện.
+- Không cho phép khách tự bấm "đã chuyển khoản" để hệ thống xác nhận thành công.
+- Luồng:
+  Khách đặt phòng → tạo yêu cầu đặt cọc → hiển thị QR/chuyển khoản → khách thanh toán → ngân hàng/cổng thanh toán xác nhận → webhook gửi về Backend → Backend xác minh giao dịch → cập nhật Payment = SUCCESS → Booking = ĐÃ ĐẶT CỌC → gửi email + QR booking.
+- Backend kiểm tra: mã giao dịch/booking, số tiền, trạng thái giao dịch, tránh xử lý giao dịch trùng và đúng tài khoản nhận tiền.
+- Hỗ trợ thanh toán phần còn lại khi check-out.
+- Lưu lịch sử giao dịch.
+- Có thể quản lý hoàn tiền theo nghiệp vụ.
+- Thiết kế database/API ngay từ đầu để dễ tích hợp cổng thanh toán sau này.

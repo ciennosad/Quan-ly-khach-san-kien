@@ -16,12 +16,12 @@ const port=process.env.PORT||4000;
 
 async function ensureRoomTypeCatalog(){
   const catalog=[
-    ['Phòng thường 1 giường','Phòng tiêu chuẩn với 1 giường lớn, phù hợp tối đa 2 khách.',2,1200000,['Wifi miễn phí','TV thông minh','Điều hòa']],
-    ['Phòng đôi 2 giường','Phòng có 2 giường đơn riêng biệt, phù hợp tối đa 2 khách.',2,1500000,['Wifi miễn phí','TV thông minh','Điều hòa']],
-    ['Phòng cao cấp 1 giường','Phòng cao cấp với 1 giường king, phù hợp tối đa 2 khách.',2,1800000,['Wifi miễn phí','Ăn sáng','TV thông minh','Bồn tắm']],
-    ['Phòng cao cấp 2 giường','Phòng cao cấp với 2 giường, phù hợp tối đa 4 khách.',4,2200000,['Wifi miễn phí','Ăn sáng','TV thông minh','Bồn tắm']],
-    ['Phòng gia đình 1 giường lớn','Phòng rộng cho gia đình với 1 giường lớn, phù hợp tối đa 4 khách.',4,2600000,['Wifi miễn phí','Ăn sáng','TV thông minh','Tủ lạnh mini']],
-    ['Phòng tập thể 5 giường','Phòng lưu trú nhóm với 5 giường riêng, phù hợp tối đa 5 khách.',5,3500000,['Wifi miễn phí','Điều hòa','Tủ khóa cá nhân']],
+    ['Phong thuong 1 giuong','Phong tieu chuan voi 1 giuong lon, phu hop toi da 2 khach.',2,1200000,['Wifi mien phi','Tivi thong minh','Dieu hoa']],
+    ['Phong doi 2 giuong','Phong co 2 giuong rieng biet, phu hop toi da 4 khach.',4,1500000,['Wifi mien phi','Tivi thong minh','Dieu hoa']],
+    ['Phong cao cap 1 giuong','Phong cao cap voi 1 giuong lon, phu hop toi da 2 khach.',2,1800000,['Wifi mien phi','Bua sang','Tivi thong minh','Bon tam']],
+    ['Phong cao cap 2 giuong','Phong cao cap voi 2 giuong, phu hop toi da 4 khach.',4,2200000,['Wifi mien phi','Bua sang','Tivi thong minh','Bon tam']],
+    ['Phong gia dinh 1 giuong lon','Phong rong cho gia dinh voi 1 giuong lon, phu hop toi da 4 khach.',4,2600000,['Wifi mien phi','Bua sang','Tivi thong minh','Tu lanh mini']],
+    ['Phong tap the 5 giuong','Phong luu tru nhom voi 5 giuong rieng, phu hop toi da 5 khach.',5,3500000,['Wifi mien phi','Dieu hoa','Tu khoa ca nhan']],
   ];
   for(const [name,description,capacity,price,amenities] of catalog){
     await pool.query(`INSERT INTO room_types(name,description,capacity,base_price,amenities) VALUES($1,$2,$3,$4,$5) ON CONFLICT(name) DO NOTHING`,[name,description,capacity,price,JSON.stringify(amenities)]);
