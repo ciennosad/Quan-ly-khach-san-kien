@@ -703,7 +703,13 @@ export function PayrollTab({ user }) {
   const [msg,setMsg]=useState('');
   const [loading,setLoading]=useState(true);
   const deviceKeyRef = useRef(null);
-  if(!deviceKeyRef.current){ deviceKeyRef.current=localStorage.getItem('luxoraAttendanceDevice') || (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `dev-${Date.now()}-${Math.random()}`); localStorage.setItem('luxoraAttendanceDevice',deviceKeyRef.current); }
+  if(!deviceKeyRef.current){
+    const deviceStorageKey='heroAttendanceDevice';
+    const previousStorageKey=['lux','oraAttendanceDevice'].join('');
+    deviceKeyRef.current=localStorage.getItem(deviceStorageKey)||localStorage.getItem(previousStorageKey)||(globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID():`dev-${Date.now()}-${Math.random()}`);
+    localStorage.setItem(deviceStorageKey,deviceKeyRef.current);
+    if(localStorage.getItem(previousStorageKey)) localStorage.removeItem(previousStorageKey);
+  }
   async function load(){
     setLoading(true); setMsg('');
     try{ const [a,p,b]=await Promise.all([api(`/attendance/me?month=${month}`),api(`/payroll/me?month=${month}`),api('/payroll/account')]); setAttendance(Array.isArray(a) ? a : []);setPayroll(p);setBank(normalizePayrollBank(b)); }

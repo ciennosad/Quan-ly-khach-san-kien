@@ -480,7 +480,7 @@ Dùng các câu dưới đây để xác nhận AI vừa hữu ích vừa giữ 
 10. Người dùng yêu cầu thông tin cá nhân không cần cho nghiệp vụ — AI chỉ cung cấp dữ liệu tối thiểu hoặc từ chối.
 
 
-<!-- LUXORA_APPROVED_CUSTOMER_SOURCE_BEGIN -->
+<!-- HERO_APPROVED_CUSTOMER_SOURCE_BEGIN -->
 ## 12. Tài liệu tổng hợp HERO dành cho chatbot khách hàng
 
 > Nội dung dưới đây được chép đầy đủ từ bản dự thảo chủ dự án đã duyệt để chatbot tra cứu. Các mục ghi **CẦN DUYỆT**, **CẦN XÁC NHẬN** hoặc **BỔ SUNG** vẫn là nội dung chưa được xác nhận thành chính sách chính thức; không trình bày chúng như cam kết của khách sạn.
@@ -690,4 +690,4 @@ Bạn có thể ghi nhận theo số mục để mình cập nhật bản chatbo
 
 Các nội dung ở mục này vẫn cần được khách sạn xác nhận riêng trước khi chatbot phát biểu như chính sách chính thức. Trong thời gian chờ, chatbot cần nói rõ chưa có thông tin chính thức và không tự cam kết.
 
-<!-- LUXORA_APPROVED_CUSTOMER_SOURCE_END -->
+<!-- HERO_APPROVED_CUSTOMER_SOURCE_END -->

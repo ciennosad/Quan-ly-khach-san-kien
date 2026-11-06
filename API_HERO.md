@@ -9,7 +9,7 @@ Tài liệu này được tổng hợp từ mã nguồn hiện có, chủ yếu 
 | Công nghệ | Node.js + Express, PostgreSQL |
 | Prefix API | `/api` |
 | URL mặc định | `http://localhost:4000/api` |
-| Kiểm tra dịch vụ | `GET /api/health` → `{ "ok": true, "service": "luxora-hotel-api" }` |
+| Kiểm tra dịch vụ | `GET /api/health` → `{ "ok": true, "service": "hero-hotel-api" }` |
 | JSON | Body JSON tối đa 2 MB |
 | Upload | Multipart, tối đa 5 MB mỗi tệp; tệp được lưu dưới `backend/uploads/` |
 | Tệp tĩnh | `/uploads/...` |

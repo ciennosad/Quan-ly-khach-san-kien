@@ -14,7 +14,7 @@ Admin và Quản lý có thêm công tắc trong **Quản trị → Cấu hình 
 Sau khi khởi tạo/cập nhật database, `time_rules_enabled = TRUE`, tức là **BẬT chế độ chạy thật**.
 
 ## Database
-Bổ sung cột `hotel_settings.time_rules_enabled`. Schema dùng `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` để cập nhật database LUXORA đang có mà không cần xóa dữ liệu.
+Bổ sung cột `hotel_settings.time_rules_enabled`. Schema dùng `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` để cập nhật database HERO đang có mà không cần xóa dữ liệu.
 
 ## API
 - `GET /api/admin/operation-settings`

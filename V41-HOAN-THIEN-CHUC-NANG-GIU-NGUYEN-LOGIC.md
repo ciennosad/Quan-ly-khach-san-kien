@@ -1,4 +1,4 @@
-# LUXORA V41 – Hoàn thiện chức năng, giữ nguyên logic cũ
+# HERO V41 – Hoàn thiện chức năng, giữ nguyên logic cũ
 
 Mục tiêu: sửa các điểm có thể gây sai trạng thái hoặc dữ liệu trong các luồng đang có, không đổi giao diện và không thay đổi nghiệp vụ đã thống nhất.
 

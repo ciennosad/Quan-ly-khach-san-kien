@@ -1,4 +1,4 @@
-# LUXORA V37 - Trang chủ, cọc 10%, thanh toán, hoàn tiền và chatbot
+# HERO V37 - Trang chủ, cọc 10%, thanh toán, hoàn tiền và chatbot
 
 ## Đã triển khai
 - Trang chủ có khối tìm phòng kiểu Booking: ngày nhận/trả, số khách, nút tìm phòng.

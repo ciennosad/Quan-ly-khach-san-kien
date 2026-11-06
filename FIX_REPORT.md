@@ -1,4 +1,4 @@
-# LUXORA HOTEL — Báo cáo sửa lỗi
+# HERO HOTEL — Báo cáo sửa lỗi
 
 ## Phạm vi đã sửa
 
@@ -86,7 +86,7 @@ Không thể xác nhận 100% runtime trong môi trường đóng gói này nế
 
 ### 4. Lỗi `startTime`
 - Đã kiểm tra toàn bộ source frontend/backend: không có `onboarding.js`, `reportAllChanges` hoặc truy cập `startTime` tương ứng.
-- Stack trace trong ảnh trỏ tới `onboarding.js`/`VM...`, nên hiện chưa có bằng chứng đây là code của LUXORA; không thêm code để nuốt lỗi nhằm che khuất lỗi bên ngoài.
+- Stack trace trong ảnh trỏ tới `onboarding.js`/`VM...`, nên hiện chưa có bằng chứng đây là code của HERO; không thêm code để nuốt lỗi nhằm che khuất lỗi bên ngoài.
 - Nếu sau khi chạy bản mới vẫn xuất hiện lỗi này, cần kiểm tra extension/script inject của trình duyệt và tab Sources để xác định nguồn script.
 
 ### 5. Kiểm tra

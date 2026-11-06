@@ -56,10 +56,10 @@ export function relevantKnowledge(message,role='GUEST'){
     questionLines=null;
   };
   for(const line of lines){
-    if(line.trim()==='<!-- LUXORA_APPROVED_CUSTOMER_SOURCE_BEGIN -->'){
+    if(line.trim()==='<!-- HERO_APPROVED_CUSTOMER_SOURCE_BEGIN -->'){
       flushQuestion();flushSection();insideApprovedCustomerSource=true;currentRole='CUSTOMER';continue;
     }
-    if(line.trim()==='<!-- LUXORA_APPROVED_CUSTOMER_SOURCE_END -->'){
+    if(line.trim()==='<!-- HERO_APPROVED_CUSTOMER_SOURCE_END -->'){
       flushQuestion();flushSection();insideApprovedCustomerSource=false;currentRole='OTHER';continue;
     }
     if(/^#{1,6}\s/.test(line)){
@@ -117,10 +117,10 @@ export function answerFromKnowledge(message,role='GUEST',history=[]){
     questionLines=null;
   };
   for(const line of lines){
-    if(line.trim()==='<!-- LUXORA_APPROVED_CUSTOMER_SOURCE_BEGIN -->'){
+    if(line.trim()==='<!-- HERO_APPROVED_CUSTOMER_SOURCE_BEGIN -->'){
       saveQuestion();insideApprovedCustomerSource=true;currentRole='CUSTOMER';continue;
     }
-    if(line.trim()==='<!-- LUXORA_APPROVED_CUSTOMER_SOURCE_END -->'){
+    if(line.trim()==='<!-- HERO_APPROVED_CUSTOMER_SOURCE_END -->'){
       saveQuestion();insideApprovedCustomerSource=false;currentRole='OTHER';continue;
     }
     if(/^#{1,6}\s/.test(line)){

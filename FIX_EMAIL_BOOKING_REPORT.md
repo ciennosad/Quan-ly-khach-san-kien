@@ -1,4 +1,4 @@
-# LUXORA HOTEL — Fix email xác nhận / hóa đơn
+# HERO HOTEL — Fix email xác nhận / hóa đơn
 
 ## Đã sửa
 
@@ -9,7 +9,7 @@
 ### 2. QR booking trong email
 - Trước đây QR được nhúng trực tiếp bằng `data:image/...` trong HTML email.
 - Cách này có thể bị Gmail/client email loại bỏ, dẫn đến ô QR không hiển thị.
-- Đã đổi sang **inline CID attachment** (`cid:booking-qr@luxora.hotel`) bằng Nodemailer.
+- Đã đổi sang **inline CID attachment** (`cid:booking-qr@hero.hotel`) bằng Nodemailer.
 - QR được gửi kèm email dưới dạng PNG nên Gmail có thể hiển thị trực tiếp.
 
 ### 3. Lịch sử thanh toán

@@ -1,4 +1,4 @@
-# LUXORA — Luồng hoàn tiền có kiểm soát bằng Quản lý/Admin
+# HERO — Luồng hoàn tiền có kiểm soát bằng Quản lý/Admin
 
 ## Quy trình
 1. Khách hủy booking có tiền cọc → hệ thống tạo yêu cầu hoàn tiền `PENDING`.

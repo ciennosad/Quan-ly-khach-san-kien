@@ -1,4 +1,4 @@
-# LUXORA – Housekeeping, Bảo trì & Dịch vụ
+# HERO – Housekeeping, Bảo trì & Dịch vụ
 
 - Giờ nhận phòng cố định 14:00.
 - Giờ trả phòng tối đa 12:00; số đêm quyết định ngày trả.

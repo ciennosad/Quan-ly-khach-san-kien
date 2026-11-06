@@ -870,7 +870,7 @@ export default function AdminHome() {
                 <label>Ngân hàng / mã BIN<input value={paymentSettings.bank_code} onChange={e => setPaymentSettings({...paymentSettings,bank_code:e.target.value})} placeholder="VCB" required /></label>
                 <label>Số tài khoản<input value={paymentSettings.bank_account} onChange={e => setPaymentSettings({...paymentSettings,bank_account:e.target.value})} placeholder="0123456789" required /></label>
                 <label>Tên tài khoản<input value={paymentSettings.bank_account_name} onChange={e => setPaymentSettings({...paymentSettings,bank_account_name:e.target.value})} placeholder="HERO HOTEL" required /></label>
-                <label>Thư điện tử khách sạn<input type="email" value={paymentSettings.hotel_email||''} onChange={e => setPaymentSettings({...paymentSettings,hotel_email:e.target.value})} placeholder="billing@luxora.vn" /></label>
+                <label>Thư điện tử khách sạn<input type="email" value={paymentSettings.hotel_email||''} onChange={e => setPaymentSettings({...paymentSettings,hotel_email:e.target.value})} placeholder="billing@hero.vn" /></label>
                 <button className="btn dark">Lưu cấu hình</button>
               </form>
             </section>
@@ -878,7 +878,7 @@ export default function AdminHome() {
               <span className="eyebrow">CẤU HÌNH GỬI THƯ</span><h2>Kiểm tra gửi thư</h2>
               <p>Nhập địa chỉ thư điện tử nhận thử để kiểm tra việc gửi thư trước khi gửi hóa đơn thật.</p>
               <form onSubmit={sendEmailTest} className="manage-form settings-form">
-                <label>Địa chỉ thư điện tử nhận thử<input type="email" value={emailTest} onChange={e => setEmailTest(e.target.value)} placeholder="khachhang@luxora.vn" required /></label>
+                <label>Địa chỉ thư điện tử nhận thử<input type="email" value={emailTest} onChange={e => setEmailTest(e.target.value)} placeholder="khachhang@hero.vn" required /></label>
                 <button className="btn dark">Gửi thư kiểm tra</button>
               </form>
               {settingsMsg && <div className="notice">{settingsMsg}</div>}

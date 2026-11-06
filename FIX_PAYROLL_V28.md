@@ -1,4 +1,4 @@
-# V28 – Hoàn thiện chấm công & tiền lương LUXORA
+# V28 – Hoàn thiện chấm công & tiền lương HERO
 
 ## Mục tiêu
 Bản này tập trung hoàn thiện chức năng chấm công và tiền lương, giữ nguyên các nghiệp vụ khách sạn khác.
