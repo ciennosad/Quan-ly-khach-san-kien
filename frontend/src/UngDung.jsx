@@ -4,6 +4,7 @@ import {api,money,assetUrl,roomTypeLabel,roomTypeTitle,roomTypeBedInfo,serviceDi
 import ChatBot from './ChatBot.jsx';
 import {Link} from 'react-router-dom';
 import {getRoomGallery} from './AnhPhongMacDinh';
+import HeroCrest from './HeroCrest.jsx';
 
 function isoDateLocal(d=new Date()){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 
@@ -90,7 +91,7 @@ function App({user,setUser}){
        <section id="contact" className="home-contact">
       <div><span className="eyebrow">LIÊN HỆ HERO</span><h2>Bạn cần chúng tôi<br/><em>hỗ trợ điều gì?</em></h2></div>
       <div className="home-contact-copy"><p>Trò chuyện với trợ lý HERO để được tư vấn về phòng nghỉ, giá phòng, dịch vụ và thời gian lưu trú.</p><button type="button" className="btn primary" onClick={()=>window.dispatchEvent(new Event('hero:open-chat'))}>Trò chuyện với HERO <span>→</span></button></div>
-    </section></main><footer className="hero-footer"><div className="hero-footer-main"><div className="hero-footer-brand"><div className="brand"><span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span></div><p>Không gian nghỉ dưỡng riêng tư, dịch vụ tận tâm và đặt phòng thuận tiện.</p></div><div className="hero-footer-contact"><span className="eyebrow">LIÊN HỆ KHÁCH SẠN</span><b>Dương Đình Kiền</b><a href="tel:0379887282">Điện thoại: 0379 887 282</a><a href="mailto:kienduon757@gmail.com">Email: kienduon757@gmail.com</a></div></div><div className="hero-footer-bottom"><span>© 2026 HERO HOTEL</span><span>Hệ thống quản lý đặt phòng khách sạn</span></div></footer></div><ChatBot/></div>
+    </section></main><footer className="hero-footer"><div className="hero-footer-main"><div className="hero-footer-brand"><div className="brand"><HeroCrest className="hero-crest footer-hero-crest"/><span>HERO <i>HOTEL</i></span></div><p>Không gian nghỉ dưỡng riêng tư, dịch vụ tận tâm và đặt phòng thuận tiện.</p></div><div className="hero-footer-contact"><span className="eyebrow">LIÊN HỆ KHÁCH SẠN</span><b>Dương Đình Kiền</b><a href="tel:0379887282">Điện thoại: 0379 887 282</a><a href="mailto:kienduon757@gmail.com">Email: kienduon757@gmail.com</a></div></div><div className="hero-footer-bottom"><span>© 2026 HERO HOTEL</span><span>Hệ thống quản lý đặt phòng khách sạn</span></div></footer></div><ChatBot/></div>
 }
 
 export default App;

@@ -2,6 +2,7 @@ import React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, logout, date } from './KetNoiAPI';
+import HeroCrest from './HeroCrest.jsx';
 
 const ICONS = {
   home: 'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-5v-6h-5v6h-5A1.5 1.5 0 0 1 3 19.5v-9Z',
@@ -166,7 +167,7 @@ export default function SiteHeader({ user, onLogout }) {
   return <>
     <header className="site-header">
       <Link to="/" className="brand site-brand" onClick={() => { setMenuOpen(false); setOpenGroup(null); }}>
-        <span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span>
+        <HeroCrest className="hero-crest site-hero-crest"/><span>HERO <i>HOTEL</i></span>
       </Link>
 
       <nav className="desktop-nav" ref={navRef}>
@@ -242,7 +243,7 @@ export default function SiteHeader({ user, onLogout }) {
     {menuOpen && <>
       <button className="mobile-menu-overlay" aria-label="Đóng menu" onClick={() => setMenuOpen(false)}/>
       <aside className="mobile-drawer">
-        <div className="drawer-head"><Link to="/" className="brand" onClick={() => setMenuOpen(false)}><span className="brand-mark">H</span><span>HERO <i>HOTEL</i></span></Link><button onClick={() => setMenuOpen(false)}>×</button></div>
+        <div className="drawer-head"><Link to="/" className="brand" onClick={() => setMenuOpen(false)}><HeroCrest className="hero-crest drawer-hero-crest"/><span>HERO <i>HOTEL</i></span></Link><button onClick={() => setMenuOpen(false)}>×</button></div>
         <Link to="/" onClick={e => { e.preventDefault(); goHomeTop(); }}><Icon name="home"/>Trang chủ</Link>
         <button onClick={() => scrollTo('rooms')}><Icon name="room"/>Phòng</button>
         <button onClick={() => scrollTo('services')}><Icon name="service"/>Dịch vụ</button>

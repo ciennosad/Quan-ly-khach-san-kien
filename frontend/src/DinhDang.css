@@ -95,6 +95,10 @@
 .site-header{position:fixed;z-index:100;left:0;right:0;top:0;height:72px;background:rgba(255,255,255,.96);backdrop-filter:blur(14px);border-bottom:1px solid #ece8e1;display:flex;align-items:center;padding:0 4.5%;gap:30px;box-shadow:0 5px 24px #00000008}
 .site-brand{flex:0 0 auto;white-space:nowrap}
 .site-header .brand-mark{width:34px;height:34px}
+.hero-crest{display:block;flex:none;width:46px;height:38px;color:#765033}
+.site-hero-crest{width:48px;height:38px}
+.drawer-hero-crest{width:46px;height:38px}
+.footer-hero-crest{width:58px;height:46px;color:#d1b28c}
 .desktop-nav{display:flex;align-items:center;justify-content:center;gap:26px;flex:1}
 .desktop-nav a,.desktop-nav button,.header-login{border:0;background:none;color:#59626c;font-size:14px;font-weight:600;letter-spacing:.3px;padding:10px 2px;position:relative}
 .desktop-nav a:hover,.desktop-nav button:hover,.desktop-nav a.active{color:var(--ink)}
